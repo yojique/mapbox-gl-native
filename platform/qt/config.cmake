@@ -9,6 +9,10 @@ if(NOT WITH_QT_DECODERS)
     mason_use(webp VERSION 0.5.1)
 endif()
 
+if(WITH_QT_OFFLINE)
+    mason_use(sqlite VERSION 3.9.1)
+endif()
+
 macro(mbgl_platform_core)
     target_sources(mbgl-core
         ${MBGL_QT_FILES}
@@ -19,13 +23,13 @@ macro(mbgl_platform_core)
         PRIVATE platform/qt/include
     )
 
-    target_add_mason_package(mbgl-core PRIVATE sqlite)
-
     target_link_libraries(mbgl-core
         ${MBGL_QT_LIBRARIES}
     )
 
-    if(NOT WITH_QT_DECODERS)
+    if(WITH_QT_DECODERS)
+        add_definitions(-DQT_IMAGE_DECODERS)
+    else()
         target_sources(mbgl-core
             PRIVATE platform/default/jpeg_reader.cpp
             PRIVATE platform/default/png_reader.cpp
@@ -35,8 +39,11 @@ macro(mbgl_platform_core)
         target_add_mason_package(mbgl-core PRIVATE libjpeg-turbo)
         target_add_mason_package(mbgl-core PRIVATE libpng)
         target_add_mason_package(mbgl-core PRIVATE webp)
-    else()
-        add_definitions(-DQT_IMAGE_DECODERS)
+    endif()
+
+    if(WITH_QT_OFFLINE)
+        target_add_mason_package(mbgl-core PRIVATE sqlite)
+        add_definitions(-DQT_OFFLINE)
     endif()
 endmacro()
 
