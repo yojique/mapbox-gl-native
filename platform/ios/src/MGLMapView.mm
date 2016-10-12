@@ -4509,13 +4509,6 @@ public:
         case mbgl::MapChangeRegionWillChange:
         case mbgl::MapChangeRegionWillChangeAnimated:
         {
-            if ( ! _userLocationAnnotationIsSelected
-                || self.userTrackingMode == MGLUserTrackingModeNone
-                || self.userTrackingState != MGLUserTrackingStateChanged)
-            {
-                [self deselectAnnotation:self.selectedAnnotation animated:NO];
-            }
-
             if ( ! [self isSuppressingChangeDelimiters] && [self.delegate respondsToSelector:@selector(mapView:regionWillChangeAnimated:)])
             {
                 BOOL animated = change == mbgl::MapChangeRegionWillChangeAnimated;
@@ -4683,6 +4676,36 @@ public:
         if (annotationView)
         {
             annotationView.center = [self convertCoordinate:annotationContext.annotation.coordinate toPointToView:self];
+            // Pin the callout view to the view annotation
+            UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
+            if (calloutView && calloutView.representedObject == annotationContext.annotation) {
+                CGPoint point = annotationView.center;
+                point.y -= annotationView.bounds.size.height/2.0f;
+                if ( ! CGPointEqualToPoint(calloutView.center, point))
+                {
+                    calloutView.center = point;
+                }
+            }
+        } else {
+            // Pin the callout view to the gl annotation
+            UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
+            if (calloutView && calloutView.representedObject == annotationContext.annotation) {
+                NSObject<MGLAnnotation> *annotation = annotationContext.annotation;
+                BOOL implementsImageForAnnotation = [self.delegate respondsToSelector:@selector(mapView:imageForAnnotation:)];
+                if (implementsImageForAnnotation) {
+                    MGLAnnotationImage *image = [self.delegate mapView:self imageForAnnotation:annotation];
+                    if (!image)
+                    {
+                        image = [self dequeueReusableAnnotationImageWithIdentifier:MGLDefaultStyleMarkerSymbolName];
+                    }
+                    if (image)
+                    {
+                        CGPoint point = [self convertCoordinate:annotation.coordinate toPointToView:self];
+                        point.y -= image.image.size.height/2.0f;
+                        calloutView.center = point;
+                    }
+                }
+            }
         }
     }
     
