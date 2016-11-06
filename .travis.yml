@@ -124,6 +124,9 @@ matrix:
       script:
         - git fetch origin master:refs/remotes/origin/master
         - make check
+      branches:
+        except:
+          - master
 
     # Qt 4 - Release
     - os: linux
