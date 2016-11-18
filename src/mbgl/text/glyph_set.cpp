@@ -33,23 +33,29 @@ const std::map<uint32_t, SDFGlyph> &GlyphSet::getSDFs() const {
 }
 
 const Shaping GlyphSet::getShaping(const std::u16string &string, const WritingDirection writingDirection, const float maxWidth,
-                                    const float lineHeight, const float horizontalAlign,
-                                    const float verticalAlign, const float justify,
-                                    const float spacing, const Point<float> &translate) const {
-    Shaping shaping(translate.x * 24, translate.y * 24, string);
+                                   const float lineHeight, const float horizontalAlign,
+                                   const float verticalAlign, const float justify,
+                                   const float spacing, const Point<float> &translate,
+                                   const float verticalHeight, const WritingModeType writingMode) const {
+    std::u16string orientedString = writingMode == WritingModeType::Vertical ? util::i18n::verticalizePunctuation(string) : string;
+    Shaping shaping(translate.x * 24, translate.y * 24, orientedString, writingMode);
 
     // the y offset *should* be part of the font metadata
     const int32_t yOffset = -17;
 
     float x = 0;
-    const float y = yOffset;
 
     // Loop through all characters of this label and shape.
-    for (char16_t chr : string) {
+    for (char16_t chr : orientedString) {
         auto it = sdfs.find(chr);
         if (it != sdfs.end()) {
-            shaping.positionedGlyphs.emplace_back(chr, x, y);
-            x += it->second.metrics.advance + spacing;
+            if (!util::i18n::hasUprightVerticalOrientation(chr) || writingMode == WritingModeType::Horizontal) {
+                shaping.positionedGlyphs.emplace_back(chr, x, yOffset, 0);
+                x += it->second.metrics.advance + spacing;
+            } else {
+                shaping.positionedGlyphs.emplace_back(chr, x, 0, -M_PI_2);
+                x += verticalHeight + spacing;
+            }
         }
     }
 
@@ -57,7 +63,7 @@ const Shaping GlyphSet::getShaping(const std::u16string &string, const WritingDi
         return shaping;
 
     lineWrap(shaping, lineHeight, maxWidth, horizontalAlign, verticalAlign, justify, translate,
-             util::i18n::allowsIdeographicBreaking(string), writingDirection);
+             util::i18n::allowsIdeographicBreaking(orientedString), writingDirection, writingMode);
 
     return shaping;
 }
@@ -91,9 +97,10 @@ void justifyLine(std::vector<PositionedGlyph> &positionedGlyphs, const std::map<
 void GlyphSet::lineWrap(Shaping &shaping, const float lineHeight, float maxWidth,
                         const float horizontalAlign, const float verticalAlign,
                         const float justify, const Point<float> &translate,
-                        bool useBalancedIdeographicBreaking, const WritingDirection writingDirection) const {
+                        bool useBalancedIdeographicBreaking, const WritingDirection writingDirection,
+                        const WritingModeType writingMode) const {
     float lineFeedOffset = writingDirection == WritingDirection::RightToLeft ? -lineHeight : lineHeight;
-    
+
     uint32_t lastSafeBreak = 0;
 
     uint32_t lengthBeforeCurrentLine = 0;
@@ -104,7 +111,7 @@ void GlyphSet::lineWrap(Shaping &shaping, const float lineHeight, float maxWidth
 
     std::vector<PositionedGlyph> &positionedGlyphs = shaping.positionedGlyphs;
 
-    if (maxWidth) {
+    if (writingMode == WritingModeType::Horizontal && maxWidth) {
         if (useBalancedIdeographicBreaking) {
             auto lastPositionedGlyph = positionedGlyphs[positionedGlyphs.size() - 1];
             uint32_t estimatedLineCount = std::fmax(1, std::ceil(lastPositionedGlyph.x / maxWidth));

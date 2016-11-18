@@ -12,10 +12,12 @@ public:
     const std::map<uint32_t, SDFGlyph> &getSDFs() const;
     const Shaping getShaping(const std::u16string &string, const WritingDirection writingDirection, float maxWidth, float lineHeight,
                              float horizontalAlign, float verticalAlign, float justify,
-                             float spacing, const Point<float> &translate) const;
+                             float spacing, const Point<float> &translate,
+                             float verticalHeight, const WritingModeType writingMode) const;
     void lineWrap(Shaping &shaping, float lineHeight, float maxWidth, float horizontalAlign,
                   float verticalAlign, float justify, const Point<float> &translate,
-                  bool useBalancedIdeographicBreaking, const WritingDirection writingDirection) const;
+                  bool useBalancedIdeographicBreaking, const WritingDirection writingDirection,
+                  WritingModeType writingMode) const;
 
 private:
     std::map<uint32_t, SDFGlyph> sdfs;

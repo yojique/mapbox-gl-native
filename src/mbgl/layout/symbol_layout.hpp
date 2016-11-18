@@ -60,7 +60,7 @@ public:
 
 private:
     void addFeature(const GeometryCollection&,
-                    const Shaping& shapedText,
+                    const std::pair<Shaping, Shaping>& shapedTextOrientations,
                     const PositionedIcon& shapedIcon,
                     const GlyphPositions& face,
                     const size_t index);
@@ -73,7 +73,8 @@ private:
     // Adds placed items to the buffer.
     template <typename Buffer>
     void addSymbols(Buffer&, const SymbolQuads&, float scale,
-                    const bool keepUpright, const style::SymbolPlacementType, const float placementAngle);
+                    const bool keepUpright, const style::SymbolPlacementType, const float placementAngle,
+                    WritingModeType writingModes);
 
     const float overscaling;
     const float zoom;
