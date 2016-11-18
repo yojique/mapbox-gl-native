@@ -368,7 +368,7 @@ bool allowsIdeographicBreaking(char16_t chr) {
 }
 
 bool allowsVerticalWritingMode(const std::u16string& string) {
-    for (char32_t chr : string) {
+    for (char16_t chr : string) {
         if (hasUprightVerticalOrientation(chr)) {
             return true;
         }

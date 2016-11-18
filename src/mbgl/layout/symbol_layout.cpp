@@ -100,7 +100,7 @@ SymbolLayout::SymbolLayout(std::string bucketName_,
             // Loop through all characters of this text and collect unique codepoints.
             for (char16_t chr : *ft.text) {
                 ranges.insert(getGlyphRange(chr));
-                if (char32_t verticalChr = util::i18n::verticalizePunctuation(chr)) {
+                if (char16_t verticalChr = util::i18n::verticalizePunctuation(chr)) {
                     ranges.insert(getGlyphRange(verticalChr));
                 }
             }
