@@ -202,6 +202,10 @@ public:
             && (top || left || bottom || right);
     }
 
+    bool operator==(const EdgeInsets& o) const {
+        return top == o.top && left == o.left && bottom == o.bottom && right == o.right;
+    }
+
     void operator+=(const EdgeInsets& o) {
         top += o.top;
         left += o.left;

@@ -110,16 +110,17 @@
     }
     
     MGLMapCamera *otherCamera = other;
-    return (_centerCoordinate.latitude == otherCamera.centerCoordinate.latitude
-            && _centerCoordinate.longitude == otherCamera.centerCoordinate.longitude
-            && _altitude == otherCamera.altitude
-            && _pitch == otherCamera.pitch && _heading == otherCamera.heading);
+    return ((float)_centerCoordinate.latitude == (float)otherCamera.centerCoordinate.latitude
+            && (float)_centerCoordinate.longitude == (float)otherCamera.centerCoordinate.longitude
+            && (float)_altitude == (float)otherCamera.altitude
+            && (float)_pitch == (float)otherCamera.pitch
+            && (float)_heading == (float)otherCamera.heading);
 }
 
 - (NSUInteger)hash
 {
-    return (@(_centerCoordinate.latitude).hash + @(_centerCoordinate.longitude).hash
-            + @(_altitude).hash + @(_pitch).hash + @(_heading).hash);
+    return (@((float)_centerCoordinate.latitude).hash + @((float)_centerCoordinate.longitude).hash
+            + @((float)_altitude).hash + @((float)_pitch).hash + @((float)_heading).hash);
 }
 
 @end

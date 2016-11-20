@@ -1078,11 +1078,6 @@ public:
 }
 
 - (void)setCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration animationTimingFunction:(nullable CAMediaTimingFunction *)function completionHandler:(nullable void (^)(void))completion {
-    _mbglMap->cancelTransitions();
-    if ([self.camera isEqual:camera]) {
-        return;
-    }
-
     mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera];
     mbgl::AnimationOptions animationOptions;
     if (duration > 0) {
@@ -1099,8 +1094,18 @@ public:
             });
         };
     }
+    
+    if (cameraOptions == _mbglMap->getCameraOptions(cameraOptions.padding)) {
+        if (completion) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                completion();
+            });
+        }
+        return;
+    }
 
     [self willChangeValueForKey:@"camera"];
+    _mbglMap->cancelTransitions();
     _mbglMap->easeTo(cameraOptions, animationOptions);
     [self didChangeValueForKey:@"camera"];
 }
@@ -1114,11 +1119,6 @@ public:
 }
 
 - (void)flyToCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration peakAltitude:(CLLocationDistance)peakAltitude completionHandler:(nullable void (^)(void))completion {
-    _mbglMap->cancelTransitions();
-    if ([self.camera isEqual:camera]) {
-        return;
-    }
-
     mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera];
     mbgl::AnimationOptions animationOptions;
     if (duration >= 0) {
@@ -1140,8 +1140,18 @@ public:
             });
         };
     }
+    
+    if (cameraOptions == _mbglMap->getCameraOptions(cameraOptions.padding)) {
+        if (completion) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                completion();
+            });
+        }
+        return;
+    }
 
     [self willChangeValueForKey:@"camera"];
+    _mbglMap->cancelTransitions();
     _mbglMap->flyTo(cameraOptions, animationOptions);
     [self didChangeValueForKey:@"camera"];
 }
@@ -1189,6 +1199,10 @@ public:
     mbgl::AnimationOptions animationOptions;
     if (animated) {
         animationOptions.duration = MGLDurationInSeconds(MGLAnimationDuration);
+    }
+    
+    if (cameraOptions == _mbglMap->getCameraOptions(cameraOptions.padding)) {
+        return;
     }
 
     [self willChangeValueForKey:@"visibleCoordinateBounds"];

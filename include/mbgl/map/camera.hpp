@@ -34,6 +34,31 @@ struct CameraOptions {
     /** Pitch toward the horizon measured in radians, with 0 rad resulting in a
         two-dimensional map. */
     optional<double> pitch;
+
+    bool operator==(const CameraOptions& o) const {
+        if ((!center && o.center) || (center && !o.center) ||
+            (center && o.center &&
+             (static_cast<float>(center->longitude) != static_cast<float>(o.center->longitude) ||
+              static_cast<float>(center->latitude) != static_cast<float>(o.center->latitude)))) {
+            return false;
+        }
+        if (padding != o.padding || anchor != o.anchor) {
+            return false;
+        }
+        if ((!zoom && o.zoom) || (zoom && !o.zoom) ||
+            (zoom && o.zoom && static_cast<float>(*zoom) != static_cast<float>(*o.zoom))) {
+            return false;
+        }
+        if ((!angle && o.angle) || (angle && !o.angle) ||
+            (angle && o.angle && static_cast<float>(*angle) != static_cast<float>(*o.angle))) {
+            return false;
+        }
+        if ((!pitch && o.pitch) || (pitch && !o.pitch) ||
+            (pitch && o.pitch && static_cast<float>(*pitch) != static_cast<float>(*o.pitch))) {
+            return false;
+        }
+        return true;
+    }
 };
 
 /** Various options for describing a transition between viewpoints with
