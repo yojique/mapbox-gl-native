@@ -20,6 +20,13 @@ dependencies {
 android {
     compileSdkVersion Integer.parseInt(project.ANDROID_BUILD_SDK_VERSION)
     buildToolsVersion project.ANDROID_BUILD_TOOLS_VERSION
+    publishNonDefault true
+
+    externalNativeBuild {
+        cmake {
+            path "../../../CMakeLists.txt"
+        }
+    }
 
     defaultConfig {
         minSdkVersion Integer.parseInt(project.ANDROID_MIN_SDK)
@@ -27,6 +34,17 @@ android {
         buildConfigField "String", "MAPBOX_EVENTS_USER_AGENT_BASE", String.format("\"MapboxEventsAndroid/%s\"", project.VERSION_NAME)
         buildConfigField "String", "MAPBOX_VERSION_STRING", String.format("\"Mapbox/%s\"", project.VERSION_NAME)
         buildConfigField "String", "GIT_REVISION_SHORT", String.format("\"%s\"", getGitRevision())
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_TOOLCHAIN=clang"
+                arguments "-DANDROID_STL=c++_static"
+                arguments "-DANDROID_CPP_FEATURES=rtti;exceptions"
+                arguments "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+                arguments "-DMBGL_PLATFORM=android"
+            }
+        }
+
+        ndk { abiFilter 'armeabi-v7a' }
     }
 
     android {

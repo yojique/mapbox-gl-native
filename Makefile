@@ -546,6 +546,7 @@ style-code:
 .PHONY: clean
 clean:
 	-rm -rf ./build \
+	        ./platform/android/MapboxGLAndroidSDK/.externalNativeBuild \
 	        ./platform/android/MapboxGLAndroidSDK/build \
 	        ./platform/android/MapboxGLAndroidSDKTestApp/build \
 	        ./platform/android/MapboxGLAndroidSDKWearTestApp/build \
