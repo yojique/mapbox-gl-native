@@ -1,5 +1,6 @@
 package com.mapbox.mapboxsdk.maps;
 
+import android.graphics.PointF;
 import android.support.annotation.NonNull;
 import android.support.annotation.UiThread;
 
@@ -15,6 +16,8 @@ public class TrackingSettings {
 
     private MapView mapView;
     private UiSettings uiSettings;
+    private MapGestureDetector mapGestureDetector;
+
     private boolean dismissLocationTrackingOnGesture = true;
     private boolean dismissBearingTrackingOnGesture = true;
 
@@ -24,9 +27,10 @@ public class TrackingSettings {
     @MyBearingTracking.Mode
     private int myBearingTrackingMode;
 
-    TrackingSettings(@NonNull MapView mapView, UiSettings uiSettings) {
+    TrackingSettings(@NonNull MapView mapView, UiSettings uiSettings, MapGestureDetector detector) {
         this.mapView = mapView;
         this.uiSettings = uiSettings;
+        this.mapGestureDetector = detector;
     }
 
     /**
@@ -234,5 +238,13 @@ public class TrackingSettings {
 
     public void resetTrackingModesIfRequired(CameraPosition cameraPosition) {
         resetTrackingModesIfRequired(cameraPosition.target != null, cameraPosition.bearing != -1);
+    }
+
+    public void invalidateFocalPointForTracking(MyLocationView myLocationView) {
+        if (!isLocationTrackingDisabled()) {
+            mapGestureDetector.setFocalPoint(new PointF(myLocationView.getCenterX(), myLocationView.getCenterY()));
+        } else {
+            mapGestureDetector.setFocalPoint(null);
+        }
     }
 }

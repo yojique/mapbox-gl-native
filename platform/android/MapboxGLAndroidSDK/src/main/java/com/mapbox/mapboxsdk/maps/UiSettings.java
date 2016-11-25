@@ -35,10 +35,13 @@ public class UiSettings {
 
     private boolean deselectMarkersOnTap = true;
 
-    private PointF focalPoint;
+    private PointF userProvidedFocalPoint;
+
+    private float pixelRatio;
 
     UiSettings(@NonNull MapView mapView) {
         this.mapView = mapView;
+        this.pixelRatio = mapView.getResources().getDisplayMetrics().density;
         this.compassSettings = new CompassViewSettings();
         this.logoSettings = new ViewSettings();
         this.attributionSettings = new ViewSettings();
@@ -593,7 +596,7 @@ public class UiSettings {
      * @param focalPoint the focal point to be used.
      */
     public void setFocalPoint(@Nullable PointF focalPoint) {
-        this.focalPoint = focalPoint;
+        this.userProvidedFocalPoint = focalPoint;
         mapView.setFocalPoint(focalPoint);
     }
 
@@ -603,7 +606,7 @@ public class UiSettings {
      * @return The focal point
      */
     public PointF getFocalPoint() {
-        return focalPoint;
+        return userProvidedFocalPoint;
     }
 
     /**
@@ -622,6 +625,10 @@ public class UiSettings {
      */
     public float getWidth() {
         return mapView.getMeasuredWidth();
+    }
+
+    public float getPixelRatio(){
+        return pixelRatio;
     }
 
     /**
