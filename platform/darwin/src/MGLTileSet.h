@@ -14,6 +14,16 @@ typedef NS_ENUM(NSUInteger, MGLTileSetScheme) {
  configuration for those strings. It can be passed to an `MGLVectorSource` or
  `MGLRasterSource` instead of an `NSURL` representing a TileJSON URL to create a 
  source.
+ 
+ Tile URL template strings are a loose open standard for referring to custom 
+ locations from which to download tiles, whether vector or raster. An example 
+ template string is `http://myserver.com/tiles/{z}/{x}/{y}.pbf`.
+ 
+ In the current implementation, only the first tile URL template string specified
+ is used.
+ 
+ @see <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">OpenStreetMap's 
+ wiki page</a> for more information on tile URL template strings.
  */
 @interface MGLTileSet : NSObject
 
