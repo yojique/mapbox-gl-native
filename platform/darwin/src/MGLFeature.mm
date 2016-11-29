@@ -14,6 +14,7 @@
 #import "NSExpression+MGLAdditions.h"
 
 #import <mbgl/util/geometry.hpp>
+#import <mbgl/style/conversion/geojson.hpp>
 #import <mapbox/geometry/feature.hpp>
 
 @interface MGLPointFeature () <MGLFeaturePrivate>
@@ -266,6 +267,30 @@ private:
     }
 };
 
+template <typename T>
+class GeoJSONEvaluator {
+public:
+    MGLShape <MGLFeaturePrivate> * operator()(const mbgl::Geometry<T> &geometry) const {
+        GeometryEvaluator<T> evaluator;
+        MGLShape <MGLFeaturePrivate> *shape = mapbox::geometry::geometry<T>::visit(geometry, evaluator);
+        return shape;
+    }
+    
+    MGLShape <MGLFeaturePrivate> * operator()(const mbgl::Feature &feature) const {
+        GeometryEvaluator<T> evaluator;
+        MGLShape <MGLFeaturePrivate> *shape = mapbox::geometry::geometry<T>::visit(feature.geometry, evaluator);
+        return shape;
+    }
+    
+    MGLShape <MGLFeaturePrivate> * operator()(const mbgl::FeatureCollection &collection) const {
+        NSMutableArray *shapes = [NSMutableArray arrayWithCapacity:collection.size()];
+        for (const auto &feature : collection) {
+            [shapes addObject:MGLFeatureFromMBGLFeature(feature)];
+        }
+        return [MGLShapeCollection<MGLFeaturePrivate> shapeCollectionWithShapes:shapes];
+    }
+};
+
 NS_ARRAY_OF(MGLShape <MGLFeature> *) *MGLFeaturesFromMBGLFeatures(const std::vector<mbgl::Feature> &features) {
     NSMutableArray *shapes = [NSMutableArray arrayWithCapacity:features.size()];
     for (const auto &feature : features) {
@@ -275,7 +300,6 @@ NS_ARRAY_OF(MGLShape <MGLFeature> *) *MGLFeaturesFromMBGLFeatures(const std::vec
 }
 
 id <MGLFeature> MGLFeatureFromMBGLFeature(const mbgl::Feature &feature) {
-    
     NSMutableDictionary *attributes = [NSMutableDictionary dictionaryWithCapacity:feature.properties.size()];
     for (auto &pair : feature.properties) {
         auto &value = pair.second;
@@ -289,6 +313,12 @@ id <MGLFeature> MGLFeatureFromMBGLFeature(const mbgl::Feature &feature) {
     }
     shape.attributes = attributes;
     
+    return shape;
+}
+
+MGLShape* MGLShapeFromGeoJSON(const mapbox::geojson::geojson &geojson) {
+    GeoJSONEvaluator<double> evaluator;
+    MGLShape *shape = mapbox::geojson::geojson::visit(geojson, evaluator);
     return shape;
 }
 

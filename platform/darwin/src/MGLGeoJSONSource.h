@@ -1,6 +1,7 @@
 #import "MGLSource.h"
 
 #import "MGLTypes.h"
+#import "MGLShape.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -127,7 +128,7 @@ extern const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationToleranc
  is set to `nil`. This property is unavailable until the receiver is passed into
  `-[MGLStyle addSource]`.
  */
-@property (nonatomic, nullable) NS_ARRAY_OF(id <MGLFeature>) *features;
+@property (nonatomic, nullable) MGLShape *shape;
 
 /**
  A GeoJSON representation of the contents of the source.
@@ -151,6 +152,10 @@ extern const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationToleranc
  */
 @property (nonatomic, nullable) NSURL *URL;
 
+/**
+ Returns all objects from the shape that conforms to `MGLFeature`.
+ */
+- (NSArray<MGLFeature> *)features;
 
 @end
 

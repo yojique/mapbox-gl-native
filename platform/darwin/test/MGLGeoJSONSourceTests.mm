@@ -42,17 +42,18 @@
     NSData *data = [geoJSON dataUsingEncoding:NSUTF8StringEncoding];
     MGLGeoJSONSource *source = [[MGLGeoJSONSource alloc] initWithIdentifier:@"source-id" geoJSONData:data options:nil];
     
-    //XCTAssertNotNil(source.features);
-    //XCTAssertEqual(source.features.count, 1);
-    //XCTAssertTrue([source.features.firstObject isMemberOfClass:[MGLPolylineFeature class]]);
+    MGLShapeCollection *collection = source.shape;
+    XCTAssertNotNil(collection);
+    XCTAssertEqual(collection.shapes.count, 1);
+    XCTAssertTrue([collection.shapes.firstObject isMemberOfClass:[MGLPolylineFeature class]]);
 }
 
 - (void)testMGLGeoJSONSourceWithSingleFeature {
     MGLGeoJSONSource *source = [[MGLGeoJSONSource alloc] initWithIdentifier:@"geojson"
                                                                 geoJSONData:[@"{\"type\": \"Point\", \"coordinates\": [0, 0]}" dataUsingEncoding:NSUTF8StringEncoding]
                                                                     options:nil];
-    //XCTAssertNotNil(source.features);
-    //XCTAssertEqual(source.features.count, 1);
+    XCTAssertNotNil(source.shape);
+    XCTAssert([source.shape isKindOfClass:[MGLPointFeature class]]);
 }
 
 - (void)testMGLGeoJSONSourceWithPolylineFeatures {
@@ -131,11 +132,9 @@
     MGLPolygonFeature *polygonFeature = [MGLPolygonFeature polygonWithCoordinates:coordinates count:5 interiorPolygons:@[polygon]];
     
     MGLGeoJSONSource *source = [[MGLGeoJSONSource alloc] initWithIdentifier:@"source-id" feature:polygonFeature options:nil];
-   
     
-    XCTAssertNotNil(source.features);
-    XCTAssertEqual(source.features.count, 1);
-    XCTAssertTrue([source.features.firstObject isMemberOfClass:[MGLPolygonFeature class]]);
+    XCTAssertNotNil(source.shape);
+    XCTAssertTrue([source.shape isMemberOfClass:[MGLPolygonFeature class]]);
 }
 
 - (void)testMGLGeoJSONSourceWithMultiPolylineFeatures {
@@ -147,9 +146,8 @@
     
     MGLGeoJSONSource *source = [[MGLGeoJSONSource alloc] initWithIdentifier:@"source-id" feature:multiPolylineFeature options:nil];
     
-    XCTAssertNotNil(source.features);
-    XCTAssertEqual(source.features.count, 1);
-    XCTAssertTrue([source.features.firstObject isMemberOfClass:[MGLMultiPolylineFeature class]]);
+    XCTAssertNotNil(source.shape);
+    XCTAssertTrue([source.shape isMemberOfClass:[MGLMultiPolylineFeature class]]);
 }
 
 - (void)testMGLGeoJSONSourceWithMultiPolygonFeatures {
@@ -176,9 +174,8 @@
     
     MGLGeoJSONSource *source = [[MGLGeoJSONSource alloc] initWithIdentifier:@"source-id" feature:multiPolygonFeature options:nil];
     
-    XCTAssertNotNil(source.features);
-    XCTAssertEqual(source.features.count, 1);
-    XCTAssertTrue([source.features.firstObject isMemberOfClass:[MGLMultiPolygonFeature class]]);
+    XCTAssertNotNil(source.shape);
+    XCTAssertTrue([source.shape isMemberOfClass:[MGLMultiPolygonFeature class]]);
 }
 
 - (void)testMGLGeoJSONSourceWithPointFeature {
