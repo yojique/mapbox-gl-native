@@ -4680,6 +4680,8 @@ public:
             UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
             if (calloutView && calloutView.representedObject == annotationContext.annotation) {
                 CGPoint point = annotationView.center;
+                point.x += annotationView.centerOffset.dx;
+                point.y += annotationView.centerOffset.dy;
                 point.y -= annotationView.bounds.size.height/2.0f;
                 if ( ! CGPointEqualToPoint(calloutView.center, point))
                 {
@@ -4700,9 +4702,18 @@ public:
                     }
                     if (image)
                     {
+                        // By default the callout view is anchored center-bottom to center-top of the annotation but
+                        // this can be adjusted by setting alignmentRectInsets on the image.
                         CGPoint point = [self convertCoordinate:annotation.coordinate toPointToView:self];
-                        point.y -= image.image.size.height/2.0f;
-                        calloutView.center = point;
+                        CGRect imageRect = CGRectMake(0, 0, image.image.size.width, image.image.size.height);
+                        CGRect rect = UIEdgeInsetsInsetRect(imageRect, image.image.alignmentRectInsets);
+                        point.x += imageRect.size.width-rect.size.width;
+                        point.y += imageRect.size.height-rect.size.height;
+                        point.y -= rect.size.height/2.0f;
+                        if ( ! CGPointEqualToPoint(calloutView.center, point))
+                        {
+                            calloutView.center = point;
+                        }
                     }
                 }
             }
