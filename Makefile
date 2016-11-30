@@ -40,6 +40,8 @@ else
   NINJA_ARGS ?=
 endif
 
+PWD = $(shell pwd)
+
 .PHONY: default
 default: test
 
@@ -63,7 +65,7 @@ BUILD_DEPS += CMakeLists.txt
 
 ifeq ($(HOST_PLATFORM), macos)
 
-export PATH := $(shell pwd)/platform/macos:$(PATH)
+export PATH := $(PWD)/platform/macos:$(PATH)
 
 MACOS_OUTPUT_PATH = build/macos
 MACOS_PROJ_PATH = $(MACOS_OUTPUT_PATH)/mbgl.xcodeproj
@@ -283,7 +285,7 @@ endif
 
 ifeq ($(HOST_PLATFORM), linux)
 
-export PATH := $(shell pwd)/platform/linux:$(PATH)
+export PATH := $(PWD)/platform/linux:$(PATH)
 export LINUX_OUTPUT_PATH = build/linux-$(shell uname -m)/$(BUILDTYPE)
 LINUX_BUILD = $(LINUX_OUTPUT_PATH)/build.ninja
 
@@ -456,7 +458,7 @@ run-qt-test: run-qt-test-*
 
 .PHONY: qt-docs
 qt-docs:
-	qdoc $(shell pwd)/platform/qt/config.qdocconf --outputdir $(shell pwd)/$(QT_OUTPUT_PATH)/docs
+	qdoc $(PWD)/platform/qt/config.qdocconf --outputdir $(PWD)/$(QT_OUTPUT_PATH)/docs
 
 #### Node targets ##############################################################
 
@@ -468,7 +470,7 @@ test-node: node
 #### Android targets ###########################################################
 
 MBGL_ANDROID_ENV = platform/android/scripts/toolchain.sh
-MBGL_ANDROID_ABIS = arm-v5 arm-v7 arm-v8 x86 x86-64 mips
+MBGL_ANDROID_ABIS = arm-v5;armeabi;9 arm-v7;armeabi-v7a;9 arm-v8;arm64-v8a;21 x86;x86;9 x86-64;x86_64;21 mips;mips;9
 MBGL_ANDROID_LOCAL_WORK_DIR = /data/local/tmp/core-tests
 
 .PHONY: android-style-code
@@ -476,28 +478,36 @@ android-style-code:
 	node platform/android/scripts/generate-style-code.js
 style-code: android-style-code
 
+platform/android/ndk_env.sh: platform/android/scripts/ndk.sh
+	platform/android/scripts/ndk.sh > platform/android/ndk_env.sh
+
 define ANDROID_RULES
 
-build/android-$1/$(BUILDTYPE): $(BUILD_DEPS)
+build/android-$1/$(BUILDTYPE)/build.ninja: platform/android/ndk_env.sh platform/android/config.cmake $(BUILD_DEPS)
 	mkdir -p build/android-$1/$(BUILDTYPE)
-
-build/android-$1/$(BUILDTYPE)/toolchain.cmake: platform/android/scripts/toolchain.sh build/android-$1/$(BUILDTYPE)
-	$(MBGL_ANDROID_ENV) $1 > build/android-$1/$(BUILDTYPE)/toolchain.cmake
-
-build/android-$1/$(BUILDTYPE)/Makefile: build/android-$1/$(BUILDTYPE)/toolchain.cmake platform/android/config.cmake
-	cd build/android-$1/$(BUILDTYPE) && cmake ../../.. -G Ninja \
-		-DCMAKE_TOOLCHAIN_FILE=build/android-$1/$(BUILDTYPE)/toolchain.cmake \
-		-DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
-		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DMBGL_PLATFORM=android
+	. platform/android/ndk_env.sh && $$$${ANDROID_CMAKE} \
+	    -H. \
+	    -Bbuild/android-$1/$(BUILDTYPE)\
+	    -G"Android Gradle - Ninja" \
+	    -DANDROID_ABI=$2 \
+	    -DANDROID_NDK="$$$${ANDROID_NDK_DIR}" \
+	    -DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
+	    -DCMAKE_MAKE_PROGRAM="$$$${ANDROID_NINJA}" \
+	    -DCMAKE_TOOLCHAIN_FILE="$$$${ANDROID_TOOLCHAIN}" \
+	    -DANDROID_NATIVE_API_LEVEL=$3 \
+	    -DANDROID_TOOLCHAIN=clang \
+	    -DANDROID_STL=c++_static \
+	    -DANDROID_CPP_FEATURES="rtti;exceptions" \
+	    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+	    -DMBGL_PLATFORM=android
 
 .PHONY: android-test-lib-$1
-android-test-lib-$1: build/android-$1/$(BUILDTYPE)/Makefile
-	$(NINJA) $(NINJA_ARGS) -j$(JOBS) -C build/android-$1/$(BUILDTYPE) mbgl-test-stripped
+android-test-lib-$1: build/android-$1/$(BUILDTYPE)/build.ninja
+	. platform/android/ndk_env.sh && $$$${ANDROID_CMAKE} --build build/android-$1/$(BUILDTYPE) -- $(NINJA_ARGS) -j$(JOBS) mbgl-test-stripped
 
 .PHONY: android-lib-$1
-android-lib-$1: build/android-$1/$(BUILDTYPE)/Makefile
-	$(NINJA) $(NINJA_ARGS) -j$(JOBS) -C build/android-$1/$(BUILDTYPE) all
+android-lib-$1: build/android-$1/$(BUILDTYPE)/build.ninja
+	. platform/android/ndk_env.sh && $$$${ANDROID_CMAKE} --build build/android-$1/$(BUILDTYPE) -- $(NINJA_ARGS) -j$(JOBS) all
 
 .PHONY: android-$1
 android-$1: android-lib-$1
@@ -541,7 +551,12 @@ run-android-$1: android-$1
 apackage: android-lib-$1
 endef
 
-$(foreach abi,$(MBGL_ANDROID_ABIS),$(eval $(call ANDROID_RULES,$(abi))))
+# Explodes the arguments into individual variables
+define ANDROID_RULES_INVOKER
+$(call ANDROID_RULES,$(word 1,$1),$(word 2,$1),$(word 3,$1))
+endef
+
+$(foreach abi,$(MBGL_ANDROID_ABIS),$(eval $(call ANDROID_RULES_INVOKER,$(subst ;, ,$(abi)))))
 
 .PHONY: android
 android: android-arm-v7
@@ -582,6 +597,7 @@ style-code:
 .PHONY: clean
 clean:
 	-rm -rf ./build \
+	        ./platform/android/ndk_env.sh \
 	        ./platform/android/MapboxGLAndroidSDK/build \
 	        ./platform/android/MapboxGLAndroidSDKTestApp/build \
 	        ./platform/android/MapboxGLAndroidSDKWearTestApp/build \
