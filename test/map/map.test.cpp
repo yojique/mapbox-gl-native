@@ -14,8 +14,12 @@
 #include <mbgl/util/io.hpp>
 #include <mbgl/util/run_loop.hpp>
 #include <mbgl/util/async_task.hpp>
+#include <mbgl/style/types.hpp>
 #include <mbgl/style/layers/background_layer.hpp>
+#include <mbgl/style/layers/circle_layer.hpp>
+#include <mbgl/style/sources/geojson_source.hpp>
 #include <mbgl/util/color.hpp>
+#include <mapbox/geojson.hpp>
 
 using namespace mbgl;
 using namespace mbgl::style;
@@ -444,7 +448,6 @@ TEST(Map, DontLoadUnneededTiles) {
     }
 }
 
-
 class MockBackend : public HeadlessBackend {
 public:
     MockBackend(std::shared_ptr<HeadlessDisplay> display_)
@@ -505,3 +508,29 @@ TEST(Map, TEST_DISABLED_ON_CI(ContinuousRendering)) {
     map.setStyleJSON(util::read_file("test/fixtures/api/water.json"));
     util::RunLoop::Get()->run();
 }
+
+TEST(Map, MakeLayerVisible) {
+    MapTest test;
+
+    Map map(test.backend, test.view.size, 1, test.fileSource, test.threadPool, MapMode::Still);
+    map.setStyleJSON(util::read_file("test/fixtures/api/empty.json"));
+
+    mapbox::geojson::point geometry{ 0.0, 0.0 };
+    auto source = std::make_unique<GeoJSONSource>("source");
+    source->setGeoJSON(geometry);
+    map.addSource(std::move(source));
+
+    auto layer = std::make_unique<CircleLayer>("layer", "source");
+    layer->setCircleRadius(8.0);
+    layer->setCircleColor({{ 1, 0, 0, 1 }});
+    layer->setVisibility(VisibilityType::None);
+    map.addLayer(std::move(layer));
+
+    //Check initial state
+    test::checkImage("test/fixtures/map/make_layer_visible/pre", test::render(map, test.view));
+
+    //Check after enabling
+    map.getLayer("layer")->setVisibility(VisibilityType::Visible);
+    test::checkImage("test/fixtures/map/make_layer_visible/result", test::render(map, test.view));
+}
+
