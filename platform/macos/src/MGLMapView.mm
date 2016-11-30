@@ -794,7 +794,7 @@ public:
     _mbglMap->setSourceTileCacheSize(cacheSize);
 }
 
-- (void)invalidate {
+- (void)setNeedsGLDisplay {
     MGLAssertIsMainThread();
 
     [self.layer setNeedsDisplay];
@@ -929,7 +929,7 @@ public:
 
 - (void)print:(__unused id)sender {
     _isPrinting = YES;
-    [self invalidate];
+    [self setNeedsGLDisplay];
 }
 
 - (void)printWithImage:(NSImage *)image {
@@ -2607,7 +2607,7 @@ public:
     }
 
     void invalidate() override {
-        [nativeView invalidate];
+        [nativeView setNeedsGLDisplay];
     }
 
     void activate() override {
