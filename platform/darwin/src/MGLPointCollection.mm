@@ -68,7 +68,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (BOOL)intersectsOverlayBounds:(MGLCoordinateBounds)overlayBounds
 {
-    return MGLLatLngBoundsFromCoordinateBounds(_bounds).intersects(MGLLatLngBoundsFromCoordinateBounds(overlayBounds));
+    return MGLCoordinateBoundsIntersectsCoordinateBounds(_bounds, overlayBounds);
 }
 
 - (mbgl::Feature)featureObject
