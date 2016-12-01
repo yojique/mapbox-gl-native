@@ -4650,6 +4650,9 @@ public:
 
     if (!delegateImplementsViewForAnnotation)
     {
+        [CATransaction begin];
+        [self updateCalloutView];
+        [CATransaction commit];
         return;
     }
 
@@ -4702,43 +4705,9 @@ public:
         if (annotationView)
         {
             annotationView.center = [self convertCoordinate:annotationContext.annotation.coordinate toPointToView:self];
-            // Pin the callout view to the view annotation
-            UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
-            if (calloutView && calloutView.representedObject == annotationContext.annotation) {
-                CGPoint point = annotationView.center;
-                point.x += annotationView.centerOffset.dx;
-                point.y += annotationView.centerOffset.dy;
-                point.y -= CGRectGetMidY(annotationView.bounds);
-                
-                if ( ! CGPointEqualToPoint(calloutView.center, point))
-                {
-                    calloutView.center = point;
-                }
-            }
-        } else {
-            // Pin the callout view to the gl annotation
-            UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
-            if (calloutView && calloutView.representedObject == annotationContext.annotation) {
-                BOOL implementsImageForAnnotation = [self.delegate respondsToSelector:@selector(mapView:imageForAnnotation:)];
-                if (implementsImageForAnnotation) {
-                    MGLAnnotationImage *image = [self imageOfAnnotationWithTag:annotationTag];
-                    if (!image)
-                    {
-                        image = [self dequeueReusableAnnotationImageWithIdentifier:MGLDefaultStyleMarkerSymbolName];
-                    }
-                    if (image)
-                    {
-                        CGRect rect = [self positioningRectForCalloutForAnnotationWithTag:annotationTag];
-                        CGRect insetRect = UIEdgeInsetsInsetRect(rect, image.image.alignmentRectInsets);
-                        CGPoint point = CGPointMake(CGRectGetMidX(insetRect), CGRectGetMidY(insetRect));
-                        
-                        if ( ! CGPointEqualToPoint(calloutView.center, point)) {
-                            calloutView.center = point;
-                        }
-                    }
-                }
-            }
         }
+        
+        [self updateCalloutView];
     }
     
     CGPoint upperLeft = {_largestAnnotationViewSize.width,_largestAnnotationViewSize.height};
@@ -4786,6 +4755,57 @@ public:
     }
 
     [CATransaction commit];
+}
+
+- (void)updateCalloutView
+{
+    UIView <MGLCalloutView> *calloutView = self.calloutViewForSelectedAnnotation;
+    id <MGLAnnotation> annotation = calloutView.representedObject;
+    
+    if (calloutView && annotation)
+    {
+        MGLAnnotationTag tag = [self annotationTagForAnnotation:annotation];
+        MGLAnnotationContext &annotationContext = _annotationContextsByAnnotationTag.at(tag);
+        MGLAnnotationView *annotationView = annotationContext.annotationView;
+        
+        // Update callout view for view annotation
+        if (annotationView)
+        {
+            CGPoint point = annotationView.center;
+            point.x += annotationView.centerOffset.dx;
+            point.y += annotationView.centerOffset.dy;
+            point.y -= CGRectGetMidY(annotationView.bounds);
+            
+            if ( ! CGPointEqualToPoint(calloutView.center, point))
+            {
+                calloutView.center = point;
+            }
+        }
+        else // Update callout view for gl annotation
+        {
+            MGLAnnotationImage *image = [self imageOfAnnotationWithTag:tag];
+            
+            if (!image && [self.delegate respondsToSelector:@selector(mapView:imageForAnnotation:)]) {
+                image = [self.delegate mapView:self imageForAnnotation:annotation];
+            }
+            
+            if (!image)
+            {
+                image = [self dequeueReusableAnnotationImageWithIdentifier:MGLDefaultStyleMarkerSymbolName];
+            }
+            
+            if (image)
+            {
+                CGRect rect = [self positioningRectForCalloutForAnnotationWithTag:tag];
+                CGRect insetRect = UIEdgeInsetsInsetRect(rect, image.image.alignmentRectInsets);
+                CGPoint point = CGPointMake(CGRectGetMidX(insetRect), CGRectGetMidY(insetRect));
+                
+                if ( ! CGPointEqualToPoint(calloutView.center, point)) {
+                    calloutView.center = point;
+                }
+            }
+        }
+    }
 }
 
 - (void)enqueueAnnotationViewForAnnotationContext:(MGLAnnotationContext &)annotationContext
