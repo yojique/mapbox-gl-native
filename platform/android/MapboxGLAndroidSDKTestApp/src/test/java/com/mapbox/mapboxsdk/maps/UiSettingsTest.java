@@ -2,6 +2,8 @@ package com.mapbox.mapboxsdk.maps;
 
 import android.view.Gravity;
 
+import com.mapbox.mapboxsdk.utils.TestConstants;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
@@ -18,11 +20,11 @@ public class UiSettingsTest {
     @InjectMocks
     MapView mMapView = mock(MapView.class);
 
-    UiSettings uiSettings;
+    private UiSettings uiSettings;
 
     @Before
     public void beforeTest() {
-        uiSettings = new UiSettings(mMapView);
+        uiSettings = new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST);
     }
 
     @Test
@@ -44,8 +46,8 @@ public class UiSettingsTest {
 
     @Test
     public void testCompassGravity() {
-        uiSettings.setCompassGravity(Gravity.LEFT);
-        assertEquals("Compass gravity should be same", Gravity.LEFT, uiSettings.getCompassGravity());
+        uiSettings.setCompassGravity(Gravity.START);
+        assertEquals("Compass gravity should be same", Gravity.START, uiSettings.getCompassGravity());
     }
 
     @Test
@@ -78,8 +80,8 @@ public class UiSettingsTest {
 
     @Test
     public void testLogoGravity() {
-        uiSettings.setLogoGravity(Gravity.RIGHT);
-        assertEquals("Logo gravity should be same", Gravity.RIGHT, uiSettings.getLogoGravity());
+        uiSettings.setLogoGravity(Gravity.END);
+        assertEquals("Logo gravity should be same", Gravity.END, uiSettings.getLogoGravity());
     }
 
     @Test
@@ -105,8 +107,8 @@ public class UiSettingsTest {
 
     @Test
     public void testAttributionGravity() {
-        uiSettings.setAttributionGravity(Gravity.RIGHT);
-        assertEquals("Attribution gravity should be same", Gravity.RIGHT, uiSettings.getAttributionGravity());
+        uiSettings.setAttributionGravity(Gravity.END);
+        assertEquals("Attribution gravity should be same", Gravity.END, uiSettings.getAttributionGravity());
     }
 
     @Test

@@ -46,10 +46,10 @@ class AnnotationManager implements MapView.OnMapChangedListener {
     private MapboxMap.OnMarkerClickListener onMarkerClickListener;
     private boolean isWaitingForRenderInvoke;
 
-    AnnotationManager(NativeMapView view, MapboxMap mapboxMap, IconManager iconManager, InfoWindowManager manager) {
+    AnnotationManager(NativeMapView view, MapboxMap mapboxMap) {
         this.nativeMapView = view;
-        this.iconManager = iconManager;
-        this.infoWindowManager = manager;
+        this.iconManager = new IconManager(nativeMapView);
+        this.infoWindowManager = new InfoWindowManager();
         this.selectedMarkers = new ArrayList<>();
         this.annotations = new LongSparseArray<>();
         this.mapboxMap = mapboxMap;
@@ -568,9 +568,9 @@ class AnnotationManager implements MapView.OnMapChangedListener {
         return polylines;
     }
 
-    //
-    // MarkerViewManager
-    //
+    InfoWindowManager getInfoWindowManager() {
+        return infoWindowManager;
+    }
 
     MarkerViewManager getMarkerViewManager() {
         return markerViewManager;
@@ -596,6 +596,7 @@ class AnnotationManager implements MapView.OnMapChangedListener {
     }
 
     void reloadMarkers() {
+        iconManager.reloadIcons();
         int count = annotations.size();
         for (int i = 0; i < count; i++) {
             Annotation annotation = annotations.get(i);

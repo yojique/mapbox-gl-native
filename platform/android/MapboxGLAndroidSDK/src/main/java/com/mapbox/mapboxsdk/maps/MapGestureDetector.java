@@ -1,6 +1,5 @@
 package com.mapbox.mapboxsdk.maps;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.PointF;
 import android.support.annotation.NonNull;
@@ -20,17 +19,16 @@ import com.mapbox.mapboxsdk.telemetry.MapboxEvent;
 /**
  * Manages gestures events on a MapView.
  * <p>
- * Relies on gesture detection code found in almeros.android.multitouch.gesturedetectors.
- * </p> *
+ * Relies on gesture detection code in almeros.android.multitouch.gesturedetectors.
+ * </p>
  */
 final class MapGestureDetector {
 
-    private final TrackingSettings trackingSettings;
-    private final AnnotationManager annotationManager;
     private final Transform transform;
     private final Projection projection;
     private final UiSettings uiSettings;
-    private final float screenDensity;
+    private final TrackingSettings trackingSettings;
+    private final AnnotationManager annotationManager;
 
     private final GestureDetectorCompat gestureDetector;
     private final ScaleGestureDetector scaleGestureDetector;
@@ -56,7 +54,6 @@ final class MapGestureDetector {
         this.transform = transform;
         this.projection = projection;
         this.uiSettings = uiSettings;
-        this.screenDensity = uiSettings.getPixelRatio();
         this.trackingSettings = trackingSettings;
 
         // Touch gesture detectors
@@ -68,18 +65,36 @@ final class MapGestureDetector {
         shoveGestureDetector = new ShoveGestureDetector(context, new ShoveGestureListener());
     }
 
+    /**
+     * Set the gesture focal point.
+     * <p>
+     * this is the center point used for calculate transformations from gestures, value is
+     * overridden if end user provides his own through {@link UiSettings#setFocalPoint(PointF)}.
+     * </p>
+     *
+     * @param focalPoint the center point for gestures
+     */
     void setFocalPoint(PointF focalPoint) {
         if (focalPoint == null) {
             // resetting focal point,
-            // need to validate if we need to reset focal point with user provided one
             if (uiSettings.getFocalPoint() != null) {
+                // using user provided one to reset
                 focalPoint = uiSettings.getFocalPoint();
             }
         }
         this.focalPoint = focalPoint;
     }
 
-    // Called when user touches the screen, all positions are absolute
+
+    /**
+     * Called when user touches the screen, all positions are absolute.
+     * <p>
+     * Forwards event to the related gesture detectors.
+     * </p>
+     *
+     * @param event the MotionEvent
+     * @return True if touch event is handled
+     */
     boolean onTouchEvent(@NonNull MotionEvent event) {
         // Check and ignore non touch or left clicks
         if ((event.getButtonState() != 0) && (event.getButtonState() != MotionEvent.BUTTON_PRIMARY)) {
@@ -150,19 +165,59 @@ final class MapGestureDetector {
         return gestureDetector.onTouchEvent(event);
     }
 
+    /**
+     * Called for events that don't fit the other handlers.
+     * <p>
+     * Examples of such events are mouse scroll events, mouse moves, joystick & trackpad.
+     * </p>
+     *
+     * @param event The MotionEvent occured
+     * @return True is the event is handled
+     */
+    boolean onGenericMotionEvent(MotionEvent event) {
+        // Mouse events
+        //if (event.isFromSource(InputDevice.SOURCE_CLASS_POINTER)) { // this is not available before API 18
+        if ((event.getSource() & InputDevice.SOURCE_CLASS_POINTER) == InputDevice.SOURCE_CLASS_POINTER) {
+            // Choose the action
+            switch (event.getActionMasked()) {
+                // Mouse scrolls
+                case MotionEvent.ACTION_SCROLL:
+                    if (!uiSettings.isZoomGesturesEnabled()) {
+                        return false;
+                    }
+
+                    // Cancel any animation
+                    transform.cancelTransitions();
+
+                    // Get the vertical scroll amount, one click = 1
+                    float scrollDist = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+
+                    // Scale the map by the appropriate power of two factor
+                    transform.zoomBy(Math.pow(2.0, scrollDist), event.getX(), event.getY());
+
+                    return true;
+
+                default:
+                    // We are not interested in this event
+                    return false;
+            }
+        }
+
+        // We are not interested in this event
+        return false;
+    }
 
 
-    // This class handles one finger gestures
+    /**
+     * Responsible for handling one finger gestures.
+     */
     private class GestureListener extends android.view.GestureDetector.SimpleOnGestureListener {
 
-        // Must always return true otherwise all events are ignored
         @Override
-        @SuppressLint("ResourceType")
         public boolean onDown(MotionEvent event) {
             return true;
         }
 
-        // Called for double taps
         @Override
         public boolean onDoubleTapEvent(MotionEvent e) {
             if (!uiSettings.isZoomGesturesEnabled()) {
@@ -225,7 +280,6 @@ final class MapGestureDetector {
             return true;
         }
 
-        // Called for a long press
         @Override
         public void onLongPress(MotionEvent motionEvent) {
             if (onMapLongClickListener != null && !quickZoom) {
@@ -233,7 +287,6 @@ final class MapGestureDetector {
             }
         }
 
-        // Called for flings
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             if (!trackingSettings.isScrollGestureCurrentlyEnabled()) {
@@ -247,6 +300,7 @@ final class MapGestureDetector {
             // Cancel any animation
             transform.cancelTransitions();
 
+            float screenDensity = uiSettings.getPixelRatio();
             double offsetX = velocityX * decelerationRate / 4 / screenDensity;
             double offsetY = velocityY * decelerationRate / 4 / screenDensity;
 
@@ -282,7 +336,7 @@ final class MapGestureDetector {
             transform.cancelTransitions();
 
             // Scroll the map
-            transform.moveBy(-distanceX / screenDensity, -distanceY / screenDensity, 0 /*no duration*/);
+            transform.moveBy(-distanceX, -distanceY, 0 /*no duration*/);
 
             if (onScrollListener != null) {
                 onScrollListener.onScroll();
@@ -291,7 +345,9 @@ final class MapGestureDetector {
         }
     }
 
-    // This class handles two finger gestures and double-tap drag gestures
+    /**
+     * Responsible for handling two finger gestures and double-tap drag gestures.
+     */
     private class ScaleGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
 
         long beginTime = 0;
@@ -361,20 +417,22 @@ final class MapGestureDetector {
             // Scale the map
             if (focalPoint != null) {
                 // arround user provided focal point
-                transform.zoomBy(detector.getScaleFactor(), focalPoint.x / screenDensity, focalPoint.y / screenDensity);
+                transform.zoomBy(detector.getScaleFactor(), focalPoint.x, focalPoint.y);
             } else if (quickZoom) {
                 // around center map
-                transform.zoomBy(detector.getScaleFactor(), (uiSettings.getWidth() / 2) / screenDensity, (uiSettings.getHeight() / 2) / screenDensity);
+                transform.zoomBy(detector.getScaleFactor(), uiSettings.getWidth() / 2, uiSettings.getHeight() / 2);
             } else {
                 // around gesture
-                transform.zoomBy(detector.getScaleFactor(), detector.getFocusX() / screenDensity, detector.getFocusY() / screenDensity);
+                transform.zoomBy(detector.getScaleFactor(), detector.getFocusX(), detector.getFocusY());
             }
 
             return true;
         }
     }
 
-    // This class handles two finger rotate gestures
+    /**
+     * Responsible for handling rotation gestures.
+     */
     private class RotateGestureListener extends RotateGestureDetector.SimpleOnRotateGestureListener {
 
         long beginTime = 0;
@@ -443,17 +501,18 @@ final class MapGestureDetector {
             // Rotate the map
             if (focalPoint != null) {
                 // User provided focal point
-                transform.setBearing(bearing, focalPoint.x / screenDensity, focalPoint.y / screenDensity);
+                transform.setBearing(bearing, focalPoint.x, focalPoint.y);
             } else {
                 // around gesture
-                transform.setBearing(bearing, detector.getFocusX() / screenDensity, detector.getFocusY() / screenDensity);
+                transform.setBearing(bearing, detector.getFocusX(), detector.getFocusY());
             }
             return true;
         }
     }
 
-    // This class handles a vertical two-finger shove. (If you place two fingers on screen with
-    // less than a 20 degree angle between them, this will detect movement on the Y-axis.)
+    /**
+     * Responsible for handling 2 finger shove gestures.
+     */
     private class ShoveGestureListener implements ShoveGestureDetector.OnShoveGestureListener {
 
         long beginTime = 0;
@@ -519,41 +578,6 @@ final class MapGestureDetector {
 
             return true;
         }
-    }
-
-    // Called for events that don't fit the other handlers
-    // such as mouse scroll events, mouse moves, joystick, trackpad
-    boolean onGenericMotionEvent(MotionEvent event) {
-        // Mouse events
-        //if (event.isFromSource(InputDevice.SOURCE_CLASS_POINTER)) { // this is not available before API 18
-        if ((event.getSource() & InputDevice.SOURCE_CLASS_POINTER) == InputDevice.SOURCE_CLASS_POINTER) {
-            // Choose the action
-            switch (event.getActionMasked()) {
-                // Mouse scrolls
-                case MotionEvent.ACTION_SCROLL:
-                    if (!uiSettings.isZoomGesturesEnabled()) {
-                        return false;
-                    }
-
-                    // Cancel any animation
-                    transform.cancelTransitions();
-
-                    // Get the vertical scroll amount, one click = 1
-                    float scrollDist = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-
-                    // Scale the map by the appropriate power of two factor
-                    transform.zoomBy(Math.pow(2.0, scrollDist), event.getX() / screenDensity, event.getY() / screenDensity);
-
-                    return true;
-
-                default:
-                    // We are not interested in this event
-                    return false;
-            }
-        }
-
-        // We are not interested in this event
-        return false;
     }
 
     void setOnMapClickListener(MapboxMap.OnMapClickListener onMapClickListener) {

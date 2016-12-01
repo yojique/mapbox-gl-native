@@ -2,8 +2,10 @@ package com.mapbox.mapboxsdk.maps;
 
 import com.mapbox.mapboxsdk.constants.MyBearingTracking;
 import com.mapbox.mapboxsdk.constants.MyLocationTracking;
+import com.mapbox.mapboxsdk.utils.TestConstants;
 
 import org.junit.Test;
+import org.junit.runners.model.TestClass;
 import org.mockito.InjectMocks;
 
 import static org.junit.Assert.assertEquals;
@@ -18,34 +20,34 @@ public class TrackingSettingsTest {
 
     @Test
     public void testSanity() {
-        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView));
+        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST));
         assertNotNull("trackingsettings should not be null", trackingSettings);
     }
 
     @Test
     public void testMyLocationTrackingMode() {
-        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView));
+        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST));
         trackingSettings.setMyLocationTrackingMode(MyLocationTracking.TRACKING_FOLLOW);
         assertEquals("MyLocationTrackingMode should match", MyLocationTracking.TRACKING_FOLLOW, trackingSettings.getMyLocationTrackingMode());
     }
 
     @Test
     public void testMyBearingTrackingMode() {
-        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView));
+        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST));
         trackingSettings.setMyBearingTrackingMode(MyBearingTracking.COMPASS);
         assertEquals("MyLocationTrackingMode should match", MyBearingTracking.COMPASS, trackingSettings.getMyBearingTrackingMode());
     }
 
     @Test
     public void testDismissTrackingModesOnGesture() {
-        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView));
+        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST));
         trackingSettings.setDismissTrackingOnGesture(false);
         assertFalse("DismissTrackingOnGesture should be false", trackingSettings.isDismissTrackingOnGesture());
     }
 
     @Test
     public void testValidateGesturesForTrackingModes(){
-        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView));
+        TrackingSettings trackingSettings = new TrackingSettings(mMapView, new UiSettings(mMapView, TestConstants.PIXEL_RATIO_TEST));
         trackingSettings.setDismissTrackingOnGesture(false);
         trackingSettings.setMyLocationTrackingMode(MyLocationTracking.TRACKING_FOLLOW);
         assertFalse("DismissTrackingOnGesture should be false", trackingSettings.isDismissTrackingOnGesture());

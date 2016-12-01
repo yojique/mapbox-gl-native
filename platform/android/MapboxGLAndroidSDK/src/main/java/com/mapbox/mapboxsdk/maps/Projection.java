@@ -17,16 +17,10 @@ import com.mapbox.mapboxsdk.maps.widgets.MyLocationViewSettings;
 public class Projection {
 
     private final NativeMapView nativeMapView;
-    private final Transform transform;
-    private final float screenDensity;
-    private final PointF screenLocationPoint;
     private int[] contentPadding;
 
-    Projection(@NonNull NativeMapView nativeMapView, @NonNull Transform transform) {
+    Projection(@NonNull NativeMapView nativeMapView) {
         this.nativeMapView = nativeMapView;
-        this.transform = transform;
-        this.screenLocationPoint = new PointF();
-        this.screenDensity = nativeMapView.getPixelRatio();
         this.contentPadding = new int[]{0, 0, 0, 0};
     }
 
@@ -40,11 +34,7 @@ public class Projection {
                 contentPadding[3] + userLocationViewPadding[3]
         };
 
-        nativeMapView.setContentPadding(
-                padding[0] / screenDensity,
-                padding[1] / screenDensity,
-                padding[2] / screenDensity,
-                padding[3] / screenDensity);
+        nativeMapView.setContentPadding(padding);
     }
 
     int[] getContentPadding() {
@@ -66,7 +56,7 @@ public class Projection {
      * @return The distance measured in meters.
      */
     public double getMetersPerPixelAtLatitude(@FloatRange(from = -90, to = 90) double latitude) {
-        return nativeMapView.getMetersPerPixelAtLatitude(latitude, transform.getZoom());
+        return nativeMapView.getMetersPerPixelAtLatitude(latitude);
     }
 
     /**
@@ -79,7 +69,6 @@ public class Projection {
      * the given screen point does not intersect the ground plane.
      */
     public LatLng fromScreenLocation(PointF point) {
-        screenLocationPoint.set(point.x / screenDensity, point.y / screenDensity);
         return nativeMapView.latLngForPixel(point);
     }
 
@@ -119,18 +108,6 @@ public class Projection {
      * @return A Point representing the screen location in screen pixels.
      */
     public PointF toScreenLocation(LatLng location) {
-        PointF pointF = nativeMapView.pixelForLatLng(location);
-        pointF.set(pointF.x * screenDensity, pointF.y * screenDensity);
-        return pointF;
-    }
-
-    /**
-     * Calculates a zoom level based on minimum scale and current scale from MapView
-     *
-     * @param minScale The minimum scale to calculate the zoom level.
-     * @return zoom level that fits the MapView.
-     */
-    public double calculateZoom(float minScale) {
-        return Math.log(transform.getZoom() * minScale) / Math.log(2);
+        return nativeMapView.pixelForLatLng(location);
     }
 }

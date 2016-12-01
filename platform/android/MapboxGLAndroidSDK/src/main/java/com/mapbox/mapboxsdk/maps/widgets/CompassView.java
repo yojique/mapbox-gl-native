@@ -121,6 +121,10 @@ public final class CompassView extends ImageView implements Runnable {
         fadeCompassViewFacingNorth = compassFadeFacingNorth;
     }
 
+    public boolean isFadeCompassViewFacingNorth(){
+        return fadeCompassViewFacingNorth;
+    }
+
     @Override
     public void run() {
         if (isFacingNorth() && fadeCompassViewFacingNorth) {

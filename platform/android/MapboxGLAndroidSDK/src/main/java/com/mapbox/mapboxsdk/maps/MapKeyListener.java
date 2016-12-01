@@ -16,12 +16,11 @@ import android.view.ViewConfiguration;
  * </ul>
  * <p>
  */
-class MapKeyListener {
+final class MapKeyListener {
 
-    private TrackingSettings trackingSettings;
-    private Transform transform;
-    private UiSettings uiSettings;
-    private float screenDensity;
+    private final TrackingSettings trackingSettings;
+    private final Transform transform;
+    private final UiSettings uiSettings;
 
     private TrackballLongPressTimeOut currentTrackballLongPressTimeOut;
 
@@ -29,11 +28,15 @@ class MapKeyListener {
         this.transform = transform;
         this.trackingSettings = trackingSettings;
         this.uiSettings = uiSettings;
-        this.screenDensity = uiSettings.getPixelRatio();
     }
 
-    // Called when the user presses a key, also called for repeating keys held
-    // down
+    /**
+     * Called when the user presses a key, alse called for repeated keys held down.
+     *
+     * @param keyCode the id of the pressed key
+     * @param event the related key event
+     * @return true if the wevent is handled
+     */
     boolean onKeyDown(int keyCode, @NonNull KeyEvent event) {
         // If the user has held the scroll key down for a while then accelerate
         // the scroll speed
@@ -57,7 +60,7 @@ class MapKeyListener {
                 transform.cancelTransitions();
 
                 // Move left
-                transform.moveBy(scrollDist / screenDensity, 0.0 / screenDensity, 0 /*no animation*/);
+                transform.moveBy(scrollDist, 0.0, 0 /*no animation*/);
                 return true;
 
             case KeyEvent.KEYCODE_DPAD_RIGHT:
@@ -69,7 +72,7 @@ class MapKeyListener {
                 transform.cancelTransitions();
 
                 // Move right
-                transform.moveBy(-scrollDist / screenDensity, 0.0 / screenDensity, 0 /*no animation*/);
+                transform.moveBy(-scrollDist, 0.0, 0 /*no animation*/);
                 return true;
 
             case KeyEvent.KEYCODE_DPAD_UP:
@@ -81,7 +84,7 @@ class MapKeyListener {
                 transform.cancelTransitions();
 
                 // Move up
-                transform.moveBy(0.0 / screenDensity, scrollDist / screenDensity, 0 /*no animation*/);
+                transform.moveBy(0.0, scrollDist, 0 /*no animation*/);
                 return true;
 
             case KeyEvent.KEYCODE_DPAD_DOWN:
@@ -93,7 +96,7 @@ class MapKeyListener {
                 transform.cancelTransitions();
 
                 // Move down
-                transform.moveBy(0.0 / screenDensity, -scrollDist / screenDensity, 0 /*no animation*/);
+                transform.moveBy(0.0, -scrollDist, 0 /*no animation*/);
                 return true;
 
             default:
@@ -102,7 +105,13 @@ class MapKeyListener {
         }
     }
 
-    // Called when the user long presses a key that is being tracked
+    /**
+     * Called when the user long presses a key that is being tracked.
+     *
+     * @param keyCode the id of the long pressed key
+     * @param event the related key event
+     * @return true if event is handled
+     */
     boolean onKeyLongPress(int keyCode, KeyEvent event) {
         // Check which key was pressed via hardware/real key code
         switch (keyCode) {
@@ -124,7 +133,13 @@ class MapKeyListener {
         }
     }
 
-    // Called when the user releases a key
+    /**
+     * Called when the user releases a key.
+     *
+     * @param keyCode the id of the released key
+     * @param event the related key event
+     * @return true if the event is handled
+     */
     boolean onKeyUp(int keyCode, KeyEvent event) {
         // Check if the key action was canceled (used for virtual keyboards)
         if (event.isCanceled()) {
@@ -152,7 +167,12 @@ class MapKeyListener {
         return false;
     }
 
-    // Called for trackball events, all motions are relative in device specific units
+    /**
+     * Called for trackball events, all motions are relative in device specific units.
+     *
+     * @param event the related motion event
+     * @return true if the event is handled
+     */
     boolean onTrackballEvent(MotionEvent event) {
         // Choose the action
         switch (event.getActionMasked()) {
@@ -166,7 +186,7 @@ class MapKeyListener {
                 transform.cancelTransitions();
 
                 // Scroll the map
-                transform.moveBy(-10.0 * event.getX() / screenDensity, -10.0 * event.getY() / screenDensity, 0 /*no animation*/);
+                transform.moveBy(-10.0 * event.getX(), -10.0 * event.getY(), 0 /*no animation*/);
                 return true;
 
             // Trackball was pushed in so start tracking and tell system we are
@@ -211,7 +231,9 @@ class MapKeyListener {
         }
     }
 
-    // This class implements the trackball long press time out callback
+    /**
+     * This class implements the trackball long press time out callback
+     */
     private class TrackballLongPressTimeOut implements Runnable {
 
         // Track if we have been cancelled

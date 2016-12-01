@@ -1,6 +1,5 @@
 package com.mapbox.mapboxsdk.maps;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.Fragment;
@@ -14,21 +13,19 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.PointF;
 import android.graphics.SurfaceTexture;
-import android.location.Location;
+import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.CallSuper;
-import android.support.annotation.FloatRange;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
 import android.util.AttributeSet;
@@ -44,6 +41,7 @@ import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -58,7 +56,6 @@ import com.mapbox.mapboxsdk.constants.MapboxConstants;
 import com.mapbox.mapboxsdk.constants.MyBearingTracking;
 import com.mapbox.mapboxsdk.constants.MyLocationTracking;
 import com.mapbox.mapboxsdk.constants.Style;
-import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.location.LocationListener;
 import com.mapbox.mapboxsdk.location.LocationServices;
 import com.mapbox.mapboxsdk.maps.widgets.CompassView;
@@ -92,8 +89,6 @@ import java.util.List;
 public class MapView extends FrameLayout {
 
     private MapboxMap mapboxMap;
-    private IconManager iconManager;
-    private AnnotationManager annotationManager;
 
     private boolean initialLoad;
     private boolean destroyed;
@@ -103,8 +98,6 @@ public class MapView extends FrameLayout {
 
     private ViewGroup markerViewContainer;
     private CompassView compassView;
-    private ImageView logoView;
-    private ImageView attributionsView;
     private MyLocationView myLocationView;
     private LocationListener myLocationListener;
 
@@ -112,7 +105,6 @@ public class MapView extends FrameLayout {
     private MapKeyListener mapKeyListener;
 
     private ConnectivityReceiver connectivityReceiver;
-    private float screenDensity = 1.0f;
 
     private String styleUrl = Style.MAPBOX_STREETS;
     private boolean styleWasSet = false;
@@ -148,7 +140,7 @@ public class MapView extends FrameLayout {
         initialize(context, options);
     }
 
-    private void initialize(@NonNull Context context, @NonNull MapboxMapOptions options) {
+    private void initialize(@NonNull final Context context, @NonNull final MapboxMapOptions options) {
         if (isInEditMode()) {
             // if we are in an editor mode we show an image of a map
             LayoutInflater.from(context).inflate(R.layout.mapbox_mapview_preview, this);
@@ -171,12 +163,30 @@ public class MapView extends FrameLayout {
             surfaceView.setVisibility(View.VISIBLE);
         }
 
-        nativeMapView = new NativeMapView(this);
-        iconManager = new IconManager(nativeMapView);
-        mapboxMap = new MapboxMap(this, iconManager);
-        annotationManager = mapboxMap.getAnnotationManager();
-        mapGestureDetector = new MapGestureDetector(getContext(), mapboxMap.getTransform(), mapboxMap.getProjection(), mapboxMap.getUiSettings(), mapboxMap.getTrackingSettings(), annotationManager);
-        mapKeyListener = new MapKeyListener(nativeMapView, mapboxMap);
+        nativeMapView =  new NativeMapView(this);
+
+        // inflate overlain Views
+        compassView = (CompassView) view.findViewById(R.id.compassView);
+        ImageView logoView = (ImageView) view.findViewById(R.id.logoView);
+        ImageView attributionsView = (ImageView) view.findViewById(R.id.attributionView);
+        attributionsView.setOnClickListener(new AttributionOnClickListener(this));
+        myLocationView = (MyLocationView) view.findViewById(R.id.userLocationView);
+
+        // used to connect different components that want to update the focal point
+        FocalPointInvalidator focalPointInvalidator = new FocalPointInvalidator();
+
+        Projection projection = new Projection(nativeMapView);
+        final UiSettings uiSettings = new UiSettings(projection, focalPointInvalidator, compassView, attributionsView, logoView);
+        TrackingSettings trackingSettings = new TrackingSettings(myLocationView, uiSettings, focalPointInvalidator);
+        MyLocationViewSettings myLocationViewSettings = new MyLocationViewSettings(projection, myLocationView, trackingSettings);
+
+        mapboxMap = new MapboxMap(nativeMapView, MapView.this, uiSettings, trackingSettings, myLocationViewSettings, projection);
+        mapGestureDetector = new MapGestureDetector(getContext(), mapboxMap.getTransform(), projection, uiSettings, trackingSettings, mapboxMap.getAnnotationManager());
+        mapKeyListener = new MapKeyListener(mapboxMap.getTransform(), trackingSettings, uiSettings);
+
+        // attach widgets to MapboxMap
+        compassView.setMapboxMap(mapboxMap);
+        myLocationView.setMapboxMap(mapboxMap);
 
         // Ensure this view is interactable
         setClickable(true);
@@ -188,22 +198,12 @@ public class MapView extends FrameLayout {
 
         // Connectivity
         onConnectivityChanged(isConnected());
+        markerViewContainer = (ViewGroup) findViewById(R.id.markerViewContainer);
 
-        markerViewContainer = (ViewGroup) view.findViewById(R.id.markerViewContainer);
-
-        myLocationView = (MyLocationView) view.findViewById(R.id.userLocationView);
-        myLocationView.setMapboxMap(mapboxMap);
-
-        compassView = (CompassView) view.findViewById(R.id.compassView);
-        compassView.setMapboxMap(mapboxMap);
-
-        logoView = (ImageView) view.findViewById(R.id.logoView);
-
-        // Setup Attributions control
-        attributionsView = (ImageView) view.findViewById(R.id.attributionView);
-        attributionsView.setOnClickListener(new AttributionOnClickListener(this));
-
-        screenDensity = context.getResources().getDisplayMetrics().density;
+        // configure the zoom button controller
+        zoomButtonsController = new ZoomButtonsController(MapView.this);
+        zoomButtonsController.setZoomSpeed(MapboxConstants.ANIMATION_DURATION);
+        zoomButtonsController.setOnZoomListener(new OnZoomListener(mapboxMap));
 
         setInitialState(options);
 
@@ -212,10 +212,24 @@ public class MapView extends FrameLayout {
             mapboxMap.getUiSettings().setZoomControlsEnabled(true);
         }
 
-        // configure the zoom button controller
-        zoomButtonsController = new ZoomButtonsController(this);
-        zoomButtonsController.setZoomSpeed(MapboxConstants.ANIMATION_DURATION);
-        zoomButtonsController.setOnZoomListener(new OnZoomListener(mapboxMap));
+        getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                uiSettings.setMeasuredDimensions(getMeasuredWidth(), getMeasuredHeight());
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                } else {
+                    getViewTreeObserver().removeGlobalOnLayoutListener(this);
+                }
+            }
+        });
+    }
+
+    private class FocalPointInvalidator implements FocalPointChangeListener{
+        @Override
+        public void onFocalPointChanged(PointF pointF) {
+            mapGestureDetector.setFocalPoint(pointF);
+        }
     }
 
     private void setInitialState(MapboxMapOptions options) {
@@ -427,9 +441,8 @@ public class MapView extends FrameLayout {
             public void onMapChanged(@MapChange int change) {
                 if (change == DID_FINISH_LOADING_STYLE && initialLoad) {
                     initialLoad = false;
-                    iconManager.reloadIcons();
-                    annotationManager.reloadMarkers();
-                    annotationManager.adjustTopOffsetPixels(mapboxMap);
+                    mapboxMap.getAnnotationManager().reloadMarkers();
+                    mapboxMap.getAnnotationManager().adjustTopOffsetPixels(mapboxMap);
 
                     // Notify listeners the map is ready
                     if (onMapReadyCallbackList.size() > 0) {
@@ -662,10 +675,6 @@ public class MapView extends FrameLayout {
         }
     }
 
-    void setFocalPoint(PointF focalPoint) {
-        mapGestureDetector.setFocalPoint(focalPoint);
-    }
-
     /**
      * You must call this method from the parent's {@link Activity#onLowMemory()} or {@link Fragment#onLowMemory()}.
      */
@@ -687,60 +696,6 @@ public class MapView extends FrameLayout {
                 }
             }
         });
-    }
-
-    //
-    // Zoom
-    //
-
-    void setMinZoom(@FloatRange(from = MapboxConstants.MINIMUM_ZOOM, to = MapboxConstants.MAXIMUM_ZOOM) double minZoom) {
-        if (destroyed) {
-            return;
-        }
-        nativeMapView.setMinZoom(minZoom);
-    }
-
-    double getMinZoom() {
-        if (destroyed) {
-            return 0;
-        }
-        return nativeMapView.getMinZoom();
-    }
-
-    void setMaxZoom(@FloatRange(from = MapboxConstants.MINIMUM_ZOOM, to = MapboxConstants.MAXIMUM_ZOOM) double maxZoom) {
-        if (destroyed) {
-            return;
-        }
-        nativeMapView.setMaxZoom(maxZoom);
-    }
-
-    double getMaxZoom() {
-        if (destroyed) {
-            return 0;
-        }
-        return nativeMapView.getMaxZoom();
-    }
-
-    //
-    // Debug
-    //
-
-    boolean isDebugActive() {
-        return !destroyed && nativeMapView.getDebug();
-    }
-
-    void setDebugActive(boolean debugActive) {
-        if (destroyed) {
-            return;
-        }
-        nativeMapView.setDebug(debugActive);
-    }
-
-    void cycleDebugOptions() {
-        if (destroyed) {
-            return;
-        }
-        nativeMapView.cycleDebugOptions();
     }
 
     //
@@ -929,7 +884,7 @@ public class MapView extends FrameLayout {
         }
 
         if (!isInEditMode()) {
-            nativeMapView.resizeView((int) (width / screenDensity), (int) (height / screenDensity));
+            nativeMapView.resizeView(width, height);
         }
     }
 
@@ -1027,7 +982,10 @@ public class MapView extends FrameLayout {
     @CallSuper
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        mapGestureDetector.onDetachedFromWindow();
+        // Required by ZoomButtonController (from Android SDK documentation)
+        if (mapboxMap.getUiSettings().isZoomControlsEnabled()) {
+            zoomButtonsController.setVisible(false);
+        }
 
         // make sure we don't leak location listener
         if (myLocationListener != null) {
@@ -1044,7 +1002,10 @@ public class MapView extends FrameLayout {
         if (isInEditMode()) {
             return;
         }
-        mapGestureDetector.onVisibilityChanged(visibility);
+
+        if (mapboxMap != null && mapboxMap.getUiSettings().isZoomControlsEnabled()) {
+            zoomButtonsController.setVisible(visibility == View.VISIBLE);
+        }
     }
 
     //
@@ -1115,133 +1076,6 @@ public class MapView extends FrameLayout {
         nativeMapView.onMapChangedEventDispatch(mapChange);
     }
 
-    //
-    // User location
-    //
-
-    void setMyLocationEnabled(boolean enabled) {
-        myLocationView.setEnabled(enabled);
-    }
-
-    Location getMyLocation() {
-        return myLocationView.getLocation();
-    }
-
-    void setOnMyLocationChangeListener(@Nullable final MapboxMap.OnMyLocationChangeListener listener) {
-        if (listener != null) {
-            myLocationListener = new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {
-                    if (listener != null) {
-                        listener.onMyLocationChange(location);
-                    }
-                }
-            };
-            LocationServices.getLocationServices(getContext()).addLocationListener(myLocationListener);
-        } else {
-            LocationServices.getLocationServices(getContext()).removeLocationListener(myLocationListener);
-            myLocationListener = null;
-        }
-    }
-
-    void setMyLocationTrackingMode(@MyLocationTracking.Mode int myLocationTrackingMode) {
-        if (myLocationTrackingMode != MyLocationTracking.TRACKING_NONE && !mapboxMap.isMyLocationEnabled()) {
-            mapboxMap.setMyLocationEnabled(true);
-        }
-        myLocationView.setMyLocationTrackingMode(myLocationTrackingMode);
-
-        if (myLocationTrackingMode == MyLocationTracking.TRACKING_FOLLOW) {
-            setFocalPoint(new PointF(myLocationView.getCenterX(), myLocationView.getCenterY()));
-        } else {
-            setFocalPoint(null);
-        }
-
-        MapboxMap.OnMyLocationTrackingModeChangeListener listener = mapboxMap.getOnMyLocationTrackingModeChangeListener();
-        if (listener != null) {
-            listener.onMyLocationTrackingModeChange(myLocationTrackingMode);
-        }
-    }
-
-    void setMyBearingTrackingMode(@MyBearingTracking.Mode int myBearingTrackingMode) {
-        if (myBearingTrackingMode != MyBearingTracking.NONE && !mapboxMap.isMyLocationEnabled()) {
-            mapboxMap.setMyLocationEnabled(true);
-        }
-        myLocationView.setMyBearingTrackingMode(myBearingTrackingMode);
-        MapboxMap.OnMyBearingTrackingModeChangeListener listener = mapboxMap.getOnMyBearingTrackingModeChangeListener();
-        if (listener != null) {
-            listener.onMyBearingTrackingModeChange(myBearingTrackingMode);
-        }
-    }
-
-    boolean isPermissionsAccepted() {
-        return (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) ||
-                ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    //
-    // Compass
-    //
-
-    void setCompassEnabled(boolean compassEnabled) {
-        compassView.setEnabled(compassEnabled);
-    }
-
-    void setCompassGravity(int gravity) {
-        setWidgetGravity(compassView, gravity);
-    }
-
-    void setCompassMargins(int left, int top, int right, int bottom) {
-        setWidgetMargins(compassView, left, top, right, bottom);
-    }
-
-    void setCompassFadeFacingNorth(boolean compassFadeFacingNorth) {
-        compassView.fadeCompassViewFacingNorth(compassFadeFacingNorth);
-    }
-
-    //
-    // Logo
-    //
-
-    void setLogoGravity(int gravity) {
-        setWidgetGravity(logoView, gravity);
-    }
-
-    void setLogoMargins(int left, int top, int right, int bottom) {
-        setWidgetMargins(logoView, left, top, right, bottom);
-    }
-
-    void setLogoEnabled(boolean visible) {
-        logoView.setVisibility(visible ? View.VISIBLE : View.GONE);
-    }
-
-    //
-    // Attribution
-    //
-
-    void setAttributionGravity(int gravity) {
-        setWidgetGravity(attributionsView, gravity);
-    }
-
-    void setAttributionMargins(int left, int top, int right, int bottom) {
-        setWidgetMargins(attributionsView, left, top, right, bottom);
-    }
-
-    void setAttributionEnabled(int visibility) {
-        attributionsView.setVisibility(visibility);
-    }
-
-    void setAtttibutionTintColor(int tintColor) {
-        // Check that the tint color being passed in isn't transparent.
-        if (Color.alpha(tintColor) == 0) {
-            ColorUtils.setTintList(attributionsView, ContextCompat.getColor(getContext(), R.color.mapbox_blue));
-        } else {
-            ColorUtils.setTintList(attributionsView, tintColor);
-        }
-    }
-
-    int getAttributionTintColor() {
-        return mapboxMap.getUiSettings().getAttributionTintColor();
-    }
 
     /**
      * Sets a callback object which will be triggered when the {@link MapboxMap} instance is ready to be used.
@@ -1265,14 +1099,6 @@ public class MapView extends FrameLayout {
 
     void setMapboxMap(MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
-    }
-
-    MyLocationView getMyLocationView() {
-        return myLocationView;
-    }
-
-    NativeMapView getNativeMapView() {
-        return nativeMapView;
     }
 
     //
@@ -1325,23 +1151,6 @@ public class MapView extends FrameLayout {
     //
     // View utility methods
     //
-
-    private void setWidgetGravity(@NonNull final View view, int gravity) {
-        LayoutParams layoutParams = (LayoutParams) view.getLayoutParams();
-        layoutParams.gravity = gravity;
-        view.setLayoutParams(layoutParams);
-    }
-
-    private void setWidgetMargins(@NonNull final View view, int left, int top, int right, int bottom) {
-        int contentPadding[] = mapboxMap.getPadding();
-        LayoutParams layoutParams = (LayoutParams) view.getLayoutParams();
-        left += contentPadding[0];
-        top += contentPadding[1];
-        right += contentPadding[2];
-        bottom += contentPadding[3];
-        layoutParams.setMargins(left, top, right, bottom);
-        view.setLayoutParams(layoutParams);
-    }
 
     MapGestureDetector getMapGestureDetector() {
         return mapGestureDetector;
@@ -1401,10 +1210,7 @@ public class MapView extends FrameLayout {
                     }
                 });
 
-                AlertDialog telemDialog = builder.show();
-                telemDialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(mapView.getAttributionTintColor());
-                telemDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(mapView.getAttributionTintColor());
-                telemDialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(mapView.getAttributionTintColor());
+                builder.show();
                 return;
             }
             String url = context.getResources().getStringArray(R.array.mapbox_attribution_links)[which];

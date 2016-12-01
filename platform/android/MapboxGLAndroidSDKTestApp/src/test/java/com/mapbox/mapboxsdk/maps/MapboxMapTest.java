@@ -98,15 +98,6 @@ public class MapboxMapTest {
     }
 
     //
-    // UiSettings
-    //
-
-    @Test
-    public void testUiSettings() {
-        assertNotNull("UiSettings should not be null", mMapboxMap.getUiSettings());
-    }
-
-    //
     // MinZoomLevel
     //
 

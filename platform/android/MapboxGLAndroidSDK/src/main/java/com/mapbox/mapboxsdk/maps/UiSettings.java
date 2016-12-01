@@ -1,23 +1,35 @@
 package com.mapbox.mapboxsdk.maps;
 
+import android.graphics.Color;
 import android.graphics.PointF;
 import android.support.annotation.ColorInt;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
+import android.support.v4.content.ContextCompat;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+
+import com.mapbox.mapboxsdk.R;
+import com.mapbox.mapboxsdk.maps.widgets.CompassView;
+import com.mapbox.mapboxsdk.utils.ColorUtils;
 
 /**
  * Settings for the user interface of a MapboxMap. To obtain this interface, call getUiSettings().
  */
-public class UiSettings {
+public final class UiSettings {
 
-    private MapView mapView;
+    private final FocalPointChangeListener focalPointChangeListener;
+    private final Projection projection;
+    private final CompassView compassView;
+    private final ImageView attributionsView;
+    private final View logoView;
+    private final float pixelRatio;
 
-    private CompassViewSettings compassSettings;
-    private ViewSettings logoSettings;
-    private ViewSettings attributionSettings;
+    private float width;
+    private float height;
 
     private boolean rotateGesturesEnabled = true;
     private boolean rotateGestureChangeAllowed = true;
@@ -37,14 +49,13 @@ public class UiSettings {
 
     private PointF userProvidedFocalPoint;
 
-    private float pixelRatio;
-
-    UiSettings(@NonNull MapView mapView) {
-        this.mapView = mapView;
-        this.pixelRatio = mapView.getResources().getDisplayMetrics().density;
-        this.compassSettings = new CompassViewSettings();
-        this.logoSettings = new ViewSettings();
-        this.attributionSettings = new ViewSettings();
+    UiSettings(@NonNull Projection projection, @NonNull FocalPointChangeListener listener, @NonNull CompassView compassView, @NonNull ImageView attributionsView, @NonNull View logoView) {
+        this.projection = projection;
+        this.focalPointChangeListener = listener;
+        this.compassView = compassView;
+        this.attributionsView = attributionsView;
+        this.logoView = logoView;
+        this.pixelRatio = logoView.getResources().getDisplayMetrics().density;
     }
 
     /**
@@ -59,8 +70,7 @@ public class UiSettings {
      * @param compassEnabled True to enable the compass; false to disable the compass.
      */
     public void setCompassEnabled(boolean compassEnabled) {
-        compassSettings.setEnabled(compassEnabled);
-        mapView.setCompassEnabled(compassEnabled);
+        compassView.setEnabled(compassEnabled);
     }
 
     /**
@@ -69,7 +79,7 @@ public class UiSettings {
      * @return True if the compass is enabled; false if the compass is disabled.
      */
     public boolean isCompassEnabled() {
-        return compassSettings.isEnabled();
+        return compassView.isEnabled();
     }
 
     /**
@@ -84,8 +94,7 @@ public class UiSettings {
      */
     @UiThread
     public void setCompassGravity(int gravity) {
-        compassSettings.setGravity(gravity);
-        mapView.setCompassGravity(gravity);
+        setWidgetGravity(compassView, gravity);
     }
 
     /**
@@ -97,8 +106,7 @@ public class UiSettings {
      * @param compassFadeFacingNorth True to enable the fading animation; false to disable it
      */
     public void setCompassFadeFacingNorth(boolean compassFadeFacingNorth) {
-        compassSettings.setFadeFacingNorth(compassFadeFacingNorth);
-        mapView.setCompassFadeFacingNorth(compassFadeFacingNorth);
+        compassView.fadeCompassViewFacingNorth(compassFadeFacingNorth);
     }
 
     /**
@@ -106,8 +114,8 @@ public class UiSettings {
      *
      * @return True if the compass will fade, false if it remains visible
      */
-    public boolean isCompassFadeWhenFacingNorth(){
-        return compassSettings.isFadeFacingNorth();
+    public boolean isCompassFadeWhenFacingNorth() {
+        return compassView.isFadeCompassViewFacingNorth();
     }
 
     /**
@@ -116,7 +124,7 @@ public class UiSettings {
      * @return The gravity
      */
     public int getCompassGravity() {
-        return compassSettings.getGravity();
+        return ((FrameLayout.LayoutParams) compassView.getLayoutParams()).gravity;
     }
 
     /**
@@ -130,8 +138,7 @@ public class UiSettings {
      */
     @UiThread
     public void setCompassMargins(int left, int top, int right, int bottom) {
-        compassSettings.setMargins(new int[]{left, top, right, bottom});
-        mapView.setCompassMargins(left, top, right, bottom);
+        setWidgetMargins(compassView, left, top, right, bottom);
     }
 
     /**
@@ -140,7 +147,7 @@ public class UiSettings {
      * @return The left margin in pixels
      */
     public int getCompassMarginLeft() {
-        return compassSettings.getMargins()[0];
+        return ((FrameLayout.LayoutParams) compassView.getLayoutParams()).leftMargin;
     }
 
     /**
@@ -149,7 +156,7 @@ public class UiSettings {
      * @return The top margin in pixels
      */
     public int getCompassMarginTop() {
-        return compassSettings.getMargins()[1];
+        return ((FrameLayout.LayoutParams) compassView.getLayoutParams()).topMargin;
     }
 
     /**
@@ -158,7 +165,7 @@ public class UiSettings {
      * @return The right margin in pixels
      */
     public int getCompassMarginRight() {
-        return compassSettings.getMargins()[2];
+        return ((FrameLayout.LayoutParams) compassView.getLayoutParams()).rightMargin;
     }
 
     /**
@@ -167,7 +174,7 @@ public class UiSettings {
      * @return The bottom margin in pixels
      */
     public int getCompassMarginBottom() {
-        return compassSettings.getMargins()[3];
+        return ((FrameLayout.LayoutParams) compassView.getLayoutParams()).bottomMargin;
     }
 
     /**
@@ -179,8 +186,7 @@ public class UiSettings {
      * @param enabled True to enable the logo; false to disable the logo.
      */
     public void setLogoEnabled(boolean enabled) {
-        logoSettings.setEnabled(enabled);
-        mapView.setLogoEnabled(enabled);
+        logoView.setVisibility(enabled ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -189,7 +195,7 @@ public class UiSettings {
      * @return True if the logo is enabled; false if the logo is disabled.
      */
     public boolean isLogoEnabled() {
-        return logoSettings.isEnabled();
+        return logoView.getVisibility() == View.VISIBLE;
     }
 
     /**
@@ -203,8 +209,7 @@ public class UiSettings {
      * @see Gravity
      */
     public void setLogoGravity(int gravity) {
-        logoSettings.setGravity(gravity);
-        mapView.setLogoGravity(gravity);
+        setWidgetGravity(logoView, gravity);
     }
 
     /**
@@ -213,7 +218,7 @@ public class UiSettings {
      * @return The gravity
      */
     public int getLogoGravity() {
-        return logoSettings.getGravity();
+        return ((FrameLayout.LayoutParams) logoView.getLayoutParams()).gravity;
     }
 
     /**
@@ -226,8 +231,7 @@ public class UiSettings {
      * @param bottom The bottom margin in pixels.
      */
     public void setLogoMargins(int left, int top, int right, int bottom) {
-        logoSettings.setMargins(new int[]{left, top, right, bottom});
-        mapView.setLogoMargins(left, top, right, bottom);
+        setWidgetMargins(logoView, left, top, right, bottom);
     }
 
     /**
@@ -236,7 +240,7 @@ public class UiSettings {
      * @return The left margin in pixels
      */
     public int getLogoMarginLeft() {
-        return logoSettings.getMargins()[0];
+        return ((FrameLayout.LayoutParams) logoView.getLayoutParams()).leftMargin;
     }
 
     /**
@@ -245,7 +249,7 @@ public class UiSettings {
      * @return The top margin in pixels
      */
     public int getLogoMarginTop() {
-        return logoSettings.getMargins()[1];
+        return ((FrameLayout.LayoutParams) logoView.getLayoutParams()).topMargin;
     }
 
     /**
@@ -254,7 +258,7 @@ public class UiSettings {
      * @return The right margin in pixels
      */
     public int getLogoMarginRight() {
-        return logoSettings.getMargins()[2];
+        return ((FrameLayout.LayoutParams) logoView.getLayoutParams()).rightMargin;
     }
 
     /**
@@ -263,7 +267,7 @@ public class UiSettings {
      * @return The bottom margin in pixels
      */
     public int getLogoMarginBottom() {
-        return logoSettings.getMargins()[3];
+        return ((FrameLayout.LayoutParams) logoView.getLayoutParams()).bottomMargin;
     }
 
     /**
@@ -275,8 +279,7 @@ public class UiSettings {
      * @param enabled True to enable the attribution; false to disable the attribution.
      */
     public void setAttributionEnabled(boolean enabled) {
-        attributionSettings.setEnabled(enabled);
-        mapView.setAttributionEnabled(enabled ? View.VISIBLE : View.GONE);
+        attributionsView.setVisibility(enabled ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -285,7 +288,7 @@ public class UiSettings {
      * @return True if the attribution is enabled; false if the attribution is disabled.
      */
     public boolean isAttributionEnabled() {
-        return attributionSettings.isEnabled();
+        return attributionsView.getVisibility() == View.VISIBLE;
     }
 
     /**
@@ -298,8 +301,7 @@ public class UiSettings {
      * @see Gravity
      */
     public void setAttributionGravity(int gravity) {
-        attributionSettings.setGravity(gravity);
-        mapView.setAttributionGravity(gravity);
+        setWidgetGravity(attributionsView, gravity);
     }
 
     /**
@@ -308,7 +310,7 @@ public class UiSettings {
      * @return The gravity
      */
     public int getAttributionGravity() {
-        return attributionSettings.getGravity();
+        return ((FrameLayout.LayoutParams) attributionsView.getLayoutParams()).gravity;
     }
 
     /**
@@ -320,8 +322,7 @@ public class UiSettings {
      * @param bottom The bottom margin in pixels.
      */
     public void setAttributionMargins(int left, int top, int right, int bottom) {
-        attributionSettings.setMargins(new int[]{left, top, right, bottom});
-        mapView.setAttributionMargins(left, top, right, bottom);
+        setWidgetMargins(attributionsView, left, top, right, bottom);
     }
 
     /**
@@ -333,17 +334,12 @@ public class UiSettings {
      * @param tintColor Color to tint the attribution.
      */
     public void setAttributionTintColor(@ColorInt int tintColor) {
-        attributionSettings.setTintColor(tintColor);
-        mapView.setAtttibutionTintColor(tintColor);
-    }
-
-    /**
-     * Returns the tint color value of the attribution view.
-     *
-     * @return The tint color
-     */
-    public int getAttributionTintColor() {
-        return attributionSettings.getTintColor();
+        // Check that the tint color being passed in isn't transparent.
+        if (Color.alpha(tintColor) == 0) {
+            ColorUtils.setTintList(attributionsView, ContextCompat.getColor(attributionsView.getContext(), R.color.mapbox_blue));
+        } else {
+            ColorUtils.setTintList(attributionsView, tintColor);
+        }
     }
 
     /**
@@ -352,7 +348,7 @@ public class UiSettings {
      * @return The left margin in pixels
      */
     public int getAttributionMarginLeft() {
-        return attributionSettings.getMargins()[0];
+        return ((FrameLayout.LayoutParams) attributionsView.getLayoutParams()).leftMargin;
     }
 
     /**
@@ -361,7 +357,7 @@ public class UiSettings {
      * @return The top margin in pixels
      */
     public int getAttributionMarginTop() {
-        return attributionSettings.getMargins()[1];
+        return ((FrameLayout.LayoutParams) attributionsView.getLayoutParams()).topMargin;
     }
 
     /**
@@ -370,7 +366,7 @@ public class UiSettings {
      * @return The right margin in pixels
      */
     public int getAttributionMarginRight() {
-        return attributionSettings.getMargins()[2];
+        return ((FrameLayout.LayoutParams) attributionsView.getLayoutParams()).rightMargin;
     }
 
     /**
@@ -379,7 +375,7 @@ public class UiSettings {
      * @return The bottom margin in pixels
      */
     public int getAttributionMarginBottom() {
-        return attributionSettings.getMargins()[3];
+        return ((FrameLayout.LayoutParams) attributionsView.getLayoutParams()).bottomMargin;
     }
 
     /**
@@ -597,7 +593,7 @@ public class UiSettings {
      */
     public void setFocalPoint(@Nullable PointF focalPoint) {
         this.userProvidedFocalPoint = focalPoint;
-        mapView.setFocalPoint(focalPoint);
+        focalPointChangeListener.onFocalPointChanged(focalPoint);
     }
 
     /**
@@ -615,7 +611,7 @@ public class UiSettings {
      * @return height in pixels
      */
     public float getHeight() {
-        return mapView.getMeasuredHeight();
+        return height;
     }
 
     /**
@@ -624,10 +620,10 @@ public class UiSettings {
      * @return widht in pixels
      */
     public float getWidth() {
-        return mapView.getMeasuredWidth();
+        return width;
     }
 
-    public float getPixelRatio(){
+    public float getPixelRatio() {
         return pixelRatio;
     }
 
@@ -635,8 +631,30 @@ public class UiSettings {
      * Invalidates the ViewSettings instances shown on top of the MapView
      */
     public void invalidate() {
-        mapView.setLogoMargins(getLogoMarginLeft(), getLogoMarginTop(), getLogoMarginRight(), getLogoMarginBottom());
-        mapView.setCompassMargins(getCompassMarginLeft(), getCompassMarginTop(), getCompassMarginRight(), getCompassMarginBottom());
-        mapView.setAttributionMargins(getAttributionMarginLeft(), getAttributionMarginTop(), getAttributionMarginRight(), getAttributionMarginBottom());
+        setLogoMargins(getLogoMarginLeft(), getLogoMarginTop(), getLogoMarginRight(), getLogoMarginBottom());
+        setCompassMargins(getCompassMarginLeft(), getCompassMarginTop(), getCompassMarginRight(), getCompassMarginBottom());
+        setAttributionMargins(getAttributionMarginLeft(), getAttributionMarginTop(), getAttributionMarginRight(), getAttributionMarginBottom());
+    }
+
+    private void setWidgetGravity(@NonNull final View view, int gravity) {
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) view.getLayoutParams();
+        layoutParams.gravity = gravity;
+        view.setLayoutParams(layoutParams);
+    }
+
+    private void setWidgetMargins(@NonNull final View view, int left, int top, int right, int bottom) {
+        int contentPadding[] = projection.getContentPadding();
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) view.getLayoutParams();
+        left += contentPadding[0];
+        top += contentPadding[1];
+        right += contentPadding[2];
+        bottom += contentPadding[3];
+        layoutParams.setMargins(left, top, right, bottom);
+        view.setLayoutParams(layoutParams);
+    }
+
+    void setMeasuredDimensions(int measuredWidth, int measuredHeight) {
+        width = measuredWidth;
+        height = measuredHeight;
     }
 }
