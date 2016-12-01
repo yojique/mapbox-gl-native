@@ -38,7 +38,7 @@
     return result;
 }
 
-- (mbgl::Geometry<double>)geometryObject {
+- (mbgl::Polygon<double>)polygon {
     mbgl::Polygon<double> geometry;
     geometry.push_back(self.ring);
     for (MGLPolygon *polygon in self.interiorPolygons) {
@@ -47,10 +47,13 @@
     return geometry;
 }
 
-- (mbgl::Annotation)annotationObjectWithDelegate:(id <MGLMultiPointDelegate>)delegate {
+- (mbgl::Geometry<double>)geometryObject {
+    return [self polygon];
+}
 
-    auto polygon = mbgl::Polygon<double> { [self ring] };
-    mbgl::FillAnnotation annotation { polygon };
+- (mbgl::Annotation)annotationObjectWithDelegate:(id <MGLMultiPointDelegate>)delegate {
+    
+    mbgl::FillAnnotation annotation { [self polygon] };
     annotation.opacity = { static_cast<float>([delegate alphaForShapeAnnotation:self]) };
     annotation.outlineColor = { [delegate strokeColorForShapeAnnotation:self] };
     annotation.color = { [delegate fillColorForPolygonAnnotation:self] };
