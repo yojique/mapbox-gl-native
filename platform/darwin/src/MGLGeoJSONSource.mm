@@ -53,7 +53,7 @@ const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationTolerance = @"M
 - (instancetype)initWithIdentifier:(NSString *)identifier feature:(id<MGLFeature>)feature options:(NSDictionary<MGLGeoJSONSourceOption,id> *)options
 {
     if (self = [super initWithIdentifier:identifier]) {
-        _shape = feature;
+        self.shape = feature;
         _options = options;
         [self commonInit];
     }
@@ -63,7 +63,7 @@ const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationTolerance = @"M
 
 - (instancetype)initWithIdentifier:(NSString *)identifier features:(NSArray<id<MGLFeature>> *)features options:(NS_DICTIONARY_OF(NSString *,id) *)options {
     if (self = [super initWithIdentifier:identifier]) {
-        _shape = [MGLShapeCollectionFeature shapeCollectionWithShapes:features];
+        self.shape = [MGLShapeCollectionFeature shapeCollectionWithShapes:features];
         _options = options;
         [self commonInit];
     }
@@ -96,7 +96,7 @@ const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationTolerance = @"M
         NSString *string = [[NSString alloc] initWithData:self.geoJSONData encoding:NSUTF8StringEncoding];
         const auto geojson = mapbox::geojson::parse(string.UTF8String);
         source->setGeoJSON(geojson);
-        _shape = MGLShapeFromGeoJSON(geojson);
+        self.shape = MGLShapeFromGeoJSON(geojson);
     } else {
         if ([self.shape isKindOfClass:[MGLShapeCollection class]]) {
             mbgl::FeatureCollection featureCollection;
@@ -174,7 +174,31 @@ const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationTolerance = @"M
     const auto geojson = mapbox::geojson::parse(string.UTF8String);
     self.rawSource->setGeoJSON(geojson);
     
-    _shape = MGLShapeFromGeoJSON(geojson);
+    self.shape = MGLShapeFromGeoJSON(geojson);
+}
+
+- (void)setShape:(MGLShape *)shape
+{
+    [self willChangeValueForKey:@"shape"];
+    _shape = shape;
+    [self didChangeValueForKey:@"shape"];
+    
+    NS_MUTABLE_ARRAY_OF(id <MGLFeature>) *features = [NSMutableArray array];
+    
+    if ([_shape isMemberOfClass:[MGLShapeCollection class]]) {
+        MGLShapeCollection *collection = (MGLShapeCollection *)_shape;
+        for (MGLShape *shape in collection.shapes) {
+            if ([shape conformsToProtocol:@protocol(MGLFeature)]) {
+                [features addObject:(id <MGLFeature>)shape];
+            }
+        }
+    } else if ([_shape conformsToProtocol:@protocol(MGLFeature)]) {
+        [features addObject:(id <MGLFeature>)_shape];
+    }
+    
+    [self willChangeValueForKey:@"features"];
+    _features = features;
+    [self didChangeValueForKey:@"features"];
 }
 
 - (void)setURL:(NSURL *)URL
@@ -188,23 +212,6 @@ const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationTolerance = @"M
     
     NSURL *url = self.URL.mgl_URLByStandardizingScheme;
     self.rawSource->setURL(url.absoluteString.UTF8String);
-}
-
-- (NSArray<MGLFeature> *)features {
-    NSMutableArray<MGLFeature> *features = [NSMutableArray<MGLFeature> array];
-    
-    if ([self.shape isMemberOfClass:[MGLShapeCollection class]]) {
-        MGLShapeCollection *collection = (MGLShapeCollection *)self.shape;
-        for (MGLShape *shape in collection.shapes) {
-            if ([shape conformsToProtocol:@protocol(MGLFeature)]) {
-                [features addObject:shape];
-            }
-        }
-    } else if ([self.shape conformsToProtocol:@protocol(MGLFeature)]) {
-        [features addObject:self.shape];
-    }
-    
-    return features;
 }
 
 @end

@@ -122,13 +122,23 @@ extern const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationToleranc
 #pragma mark Accessing a Source’s Content
 
 /**
- The contents of the source.
+ The contents of the source. A shape can represent a GeoJSON geometry, a feature, 
+ or a collection of features.
 
  If the receiver was initialized using `-initWithIdentifier:URL:options:`, this property
  is set to `nil`. This property is unavailable until the receiver is passed into
  `-[MGLStyle addSource]`.
  */
 @property (nonatomic, nullable) MGLShape *shape;
+
+/**
+ The features inside the shape.
+ 
+ If the receiver was initialized using `-initWithIdentifier:URL:options:`, this property
+ is set to `nil`. This property is unavailable until the receiver is passed into
+ `-[MGLStyle addSource]`.
+ */
+@property (nonatomic, nullable) NS_ARRAY_OF(id <MGLFeature>) *features;
 
 /**
  A GeoJSON representation of the contents of the source.
@@ -151,11 +161,6 @@ extern const MGLGeoJSONSourceOption MGLGeoJSONSourceOptionSimplificationToleranc
  property is set to `nil`.
  */
 @property (nonatomic, nullable) NSURL *URL;
-
-/**
- Returns all objects from the shape that conforms to `MGLFeature`.
- */
-- (NSArray<MGLFeature> *)features;
 
 @end
 
