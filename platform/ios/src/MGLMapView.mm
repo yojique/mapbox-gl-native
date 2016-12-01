@@ -4509,6 +4509,32 @@ public:
         case mbgl::MapChangeRegionWillChange:
         case mbgl::MapChangeRegionWillChangeAnimated:
         {
+            if ( ! _userLocationAnnotationIsSelected
+                || self.userTrackingMode == MGLUserTrackingModeNone
+                || self.userTrackingState != MGLUserTrackingStateChanged)
+            {
+                // Deselect annotation if it lies outside the viewport
+                MGLAnnotationTag tag = [self annotationTagForAnnotation:self.selectedAnnotation];
+                id <MGLAnnotation> annotation = [self annotationWithTag:tag];
+                if (annotation) {
+                    MGLAnnotationContext &annotationContext = _annotationContextsByAnnotationTag.at(tag);
+                    MGLAnnotationView *annotationView = annotationContext.annotationView;
+                    
+                    // By default attempt to use the GL annotation image frame as the positioning rect.
+                    CGRect rect = [self positioningRectForCalloutForAnnotationWithTag:tag];
+                    
+                    if (annotationView)
+                    {
+                        // Annotations represented by views use the view frame as the positioning rect.
+                        rect = annotationView.frame;
+                    }
+                    
+                    if ( ! CGRectIntersectsRect(rect, self.frame)) {
+                        [self deselectAnnotation:self.selectedAnnotation animated:NO];
+                    }
+                }
+            }
+
             if ( ! [self isSuppressingChangeDelimiters] && [self.delegate respondsToSelector:@selector(mapView:regionWillChangeAnimated:)])
             {
                 BOOL animated = change == mbgl::MapChangeRegionWillChangeAnimated;
